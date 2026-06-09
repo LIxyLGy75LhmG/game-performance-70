@@ -1,29 +1,31 @@
-import json
+import time
 import random
-from typing import List, Dict
 
-class GameData:
-    def __init__(self, player_name: str, score: int, level: int):
-        self.player_name = player_name
-        self.score = score
-        self.level = level
+class NetworkError(Exception):
+    pass
 
-    def to_dict(self) -> Dict[str, any]:
-        return {
-            'player_name': self.player_name,
-            'score': self.score,
-            'level': self.level
-        }
+def request_with_retry(url, retries=3, delay=2):
+    for attempt in range(retries):
+        try:
+            response = fake_network_request(url)
+            return response
+        except NetworkError:
+            if attempt < retries - 1:
+                print(f'Retrying... Attempt {attempt + 2}/{retries}')
+                time.sleep(delay)
+            else:
+                raise
 
-def save_game_data(players: List[GameData], filename: str) -> None:
-    data = [player.to_dict() for player in players]
-    with open(filename, 'w') as f:
-        json.dump(data, f, indent=4)
+def fake_network_request(url):
+    if random.choice([True, False]):  # Simulate network success or failure
+        return {"status": "success", "url": url}
+    else:
+        raise NetworkError(f'Failed to connect to {url}')
 
-def load_game_data(filename: str) -> List[GameData]:
-    with open(filename, 'r') as f:
-        data = json.load(f)
-    return [GameData(**item) for item in data]
-
-def generate_random_game_data(num_players: int) -> List[GameData]:
-    return [GameData(f'Player{str(i)}', random.randint(0, 100), random.randint(1, 10)) for i in range(num_players)]
+# Example usage:
+if __name__ == '__main__':
+    try:
+        result = request_with_retry('http://example.com')
+        print(result)
+    except NetworkError as e:
+        print(e)
