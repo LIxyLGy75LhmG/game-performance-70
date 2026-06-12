@@ -1,32 +1,29 @@
-import time
 import random
-import functools
 
 
-def retry(max_attempts=3, delay=1, backoff=2):
-    def decorator(func):
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            attempts = 0
-            while attempts < max_attempts:
-                try:
-                    return func(*args, **kwargs)
-                except Exception as e:
-                    attempts += 1
-                    if attempts == max_attempts:
-                        raise e
-                    wait_time = delay * (backoff ** (attempts - 1))
-                    print(f"Retrying in {wait_time} seconds...")
-                    time.sleep(wait_time)
-        return wrapper
-    return decorator
+def generate_random_position(bounds):
+    """Generate a random position within given bounds."""
+    x = random.uniform(bounds['x_min'], bounds['x_max'])
+    y = random.uniform(bounds['y_min'], bounds['y_max'])
+    return {'x': x, 'y': y}
 
 
-@retry(max_attempts=5, delay=1, backoff=2)
-def fetch_data_from_network():
-    if random.random() < 0.7:
-        raise Exception('Simulated network failure')
-    return 'Data fetched successfully!'
+def is_within_bounds(position, bounds):
+    """Check if a position is within specified bounds."""
+    return (bounds['x_min'] <= position['x'] <= bounds['x_max'] and
+            bounds['y_min'] <= position['y'] <= bounds['y_max'])
 
-if __name__ == '__main__':
-    print(fetch_data_from_network())
+
+def clamp(value, min_value, max_value):
+    """Clamp a value between min and max limits."""
+    return max(min_value, min(value, max_value))
+
+
+def calculate_distance(point_a, point_b):
+    """Calculate the Euclidean distance between two points."""
+    return ((point_a['x'] - point_b['x']) ** 2 + (point_a['y'] - point_b['y']) ** 2) ** 0.5
+
+
+def lerp(start, end, t):
+    """Linear interpolation between two values based on t."""
+    return start + (end - start) * t
