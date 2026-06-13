@@ -4,28 +4,26 @@ import random
 class NetworkError(Exception):
     pass
 
-def request_with_retry(url, retries=3, delay=2):
+def retry(operation, retries=3, delay=2):
     for attempt in range(retries):
         try:
-            response = fake_network_request(url)
-            return response
-        except NetworkError:
+            return operation()
+        except NetworkError as e:
             if attempt < retries - 1:
-                print(f'Retrying... Attempt {attempt + 2}/{retries}')
+                print(f"Attempt {attempt + 1} failed: {e}. Retrying...")
                 time.sleep(delay)
             else:
+                print("All attempts failed.")
                 raise
 
-def fake_network_request(url):
-    if random.choice([True, False]):  # Simulate network success or failure
-        return {"status": "success", "url": url}
-    else:
-        raise NetworkError(f'Failed to connect to {url}')
+def network_operation():
+    if random.choice([True, False]):
+        raise NetworkError("Simulated network failure")
+    return "Success!"
 
-# Example usage:
-if __name__ == '__main__':
+if __name__ == "__main__":
     try:
-        result = request_with_retry('http://example.com')
+        result = retry(network_operation)
         print(result)
-    except NetworkError as e:
-        print(e)
+    except NetworkError:
+        print("Operation failed after retries.")
