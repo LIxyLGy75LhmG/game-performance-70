@@ -1,38 +1,17 @@
 import logging
+from logging.handlers import RotatingFileHandler
 
-class GameLogger:
-    def __init__(self, name):
-        self.logger = logging.getLogger(name)
-        self.logger.setLevel(logging.DEBUG)
-        handler = logging.FileHandler(f'{name}.log')
-        handler.setLevel(logging.DEBUG)
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-        handler.setFormatter(formatter)
-        self.logger.addHandler(handler)
 
-    def debug(self, message):
-        self.logger.debug(message)
+def setup_logger(log_file='game.log', max_bytes=5*1024*1024, backup_count=3):
+    logger = logging.getLogger('GameLogger')
+    logger.setLevel(logging.DEBUG)
+    handler = RotatingFileHandler(log_file, maxBytes=max_bytes, backupCount=backup_count)
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    return logger
 
-    def info(self, message):
-        self.logger.info(message)
 
-    def warning(self, message):
-        self.logger.warning(message)
-
-    def error(self, message):
-        self.logger.error(message)
-
-    def critical(self, message):
-        self.logger.critical(message)
-
-    @staticmethod
-    def set_global_level(level):
-        root_logger = logging.getLogger()
-        root_logger.setLevel(level)
-
-# Usage Example
 if __name__ == '__main__':
-    logger = GameLogger('MyGame')
-    logger.info('Game started')
-    logger.warning('Low health warning')
-    logger.error('Error loading level')
+    test_logger = setup_logger()
+    test_logger.info('Logger setup complete.')
