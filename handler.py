@@ -1,34 +1,47 @@
-import time
 import random
-import requests
+import json
 
-class NetworkError(Exception):
-    pass
+class GameHandler:
+    def __init__(self):
+        self.valid_commands = ['start', 'stop', 'pause', 'resume']
+        self.state = 'stopped'
 
-def retry_decorator(retries=3, delay=2):
-    def wrapper(func):
-        def wrapped(*args, **kwargs):
-            for attempt in range(retries):
-                try:
-                    return func(*args, **kwargs)
-                except (requests.RequestException, NetworkError) as e:
-                    print(f'Attempt {attempt + 1} failed: {e}')
-                    time.sleep(delay)
-            raise NetworkError('Max retries exceeded')
-        return wrapped
-    return wrapper
+    def validate_input(self, command):
+        if command not in self.valid_commands:
+            raise ValueError(f"Invalid command: {command}")
+        return command
 
-@retry_decorator(retries=5, delay=3)
-def fetch_data(url):
-    if random.choice([True, False]):  # Simulate random network failure
-        raise requests.RequestException('Network is down')
-    response = requests.get(url)
-    response.raise_for_status()
-    return response.json()
+    def process_command(self, command):
+        command = self.validate_input(command)
+        if command == 'start':
+            self.state = 'running'
+            return self._start_game()
+        elif command == 'stop':
+            self.state = 'stopped'
+            return self._stop_game()
+        elif command == 'pause':
+            self.state = 'paused'
+            return self._pause_game()
+        elif command == 'resume':
+            self.state = 'running'
+            return self._resume_game()
+
+    def _start_game(self):
+        return json.dumps({'status': 'Game started', 'state': self.state})
+
+    def _stop_game(self):
+        return json.dumps({'status': 'Game stopped', 'state': self.state})
+
+    def _pause_game(self):
+        return json.dumps({'status': 'Game paused', 'state': self.state})
+
+    def _resume_game(self):
+        return json.dumps({'status': 'Game resumed', 'state': self.state})
 
 if __name__ == '__main__':
-    try:
-        data = fetch_data('https://api.example.com/data')
-        print(data)
-    except NetworkError as e:
-        print(e)
+    handler = GameHandler()
+    for command in ['start', 'pause', 'resume', 'stop', 'invalid']:
+        try:
+            print(handler.process_command(command))
+        except ValueError as e:
+            print(e)
