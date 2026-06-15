@@ -1,37 +1,30 @@
-import json
+import time
 import random
+import requests
 
-class GameProcessor:
-    def __init__(self):
-        self.valid_inputs = {'start', 'stop', 'pause', 'resume'}
+def retry_network_operation(operation, retries=3, delay=2):
+    for attempt in range(retries):
+        try:
+            result = operation()
+            return result
+        except requests.ConnectionError as e:
+            print(f"ConnectionError: {e}. Attempt {attempt + 1} of {retries}.")
+            time.sleep(delay)
+        except requests.Timeout as e:
+            print(f"TimeoutError: {e}. Attempt {attempt + 1} of {retries}.")
+            time.sleep(delay)
+    raise Exception("Maximum retries exceeded.")
 
-    def get_user_input(self):
-        return input("Enter command (start/stop/pause/resume): ").strip().lower()
-
-    def validate_input(self, command):
-        if command not in self.valid_inputs:
-            raise ValueError(f'Invalid command: {command}')
-
-    def process_commands(self):
-        while True:
-            command = self.get_user_input()
-            try:
-                self.validate_input(command)
-                self.handle_command(command)
-            except ValueError as e:
-                print(e)
-
-    def handle_command(self, command):
-        if command == 'start':
-            print("Game started!")
-        elif command == 'stop':
-            print("Game stopped.")
-            exit()
-        elif command == 'pause':
-            print("Game paused.")
-        elif command == 'resume':
-            print("Game resumed.")
+def fetch_data(url):
+    print(f"Fetching data from {url}...")
+    response = requests.get(url)
+    response.raise_for_status()
+    return response.json()
 
 if __name__ == '__main__':
-    processor = GameProcessor()
-    processor.process_commands()
+    url = 'https://api.example.com/data'
+    try:
+        data = retry_network_operation(lambda: fetch_data(url))
+        print(data)
+    except Exception as e:
+        print(f"Failed to fetch data: {e}")
