@@ -1,17 +1,17 @@
 # Game Performance 70
 
-Game Performance 70 is a Python-based tool designed to analyze and optimize the performance of video games. By utilizing advanced algorithms and metrics, it provides developers with actionable insights to enhance gameplay efficiency and resource management.
+Game Performance 70 is a Python-based tool designed to analyze and optimize the performance of video games by providing detailed metrics on frame rates, memory usage, and CPU load. With this tool, developers can gain valuable insights to enhance gameplay smoothness and responsiveness.
 
 ## Features
 
-- **Performance Metrics Collection**: Gather detailed statistics on frame rates, latency, and resource usage to pinpoint optimization areas.
-- **Dynamic Benchmarking**: Run real-time benchmarks during gameplay to assess how changes in the code affect performance under various conditions.
-- **Resource Profiling**: Identify memory and CPU usage patterns, helping developers streamline their game's processes.
-- **Compatibility Toolkit**: Ensure smooth integration with popular game engines, including Unity and Unreal Engine, to leverage built-in profiling tools.
+- **Real-time Performance Metrics**: Monitor frame rates, memory usage, and CPU/GPU performance in real-time while playing or testing games.
+- **Customizable Benchmarking**: Set up tailored benchmarks for different game scenarios to pinpoint performance bottlenecks effectively.
+- **Data Visualization**: View and analyze performance statistics through engaging graphical representations, making it easier to understand trends and issues.
+- **Compatibility with Multiple Platforms**: Works seamlessly on Windows, macOS, and Linux systems, ensuring broad accessibility for game developers.
 
 ## Installation
 
-To install Game Performance 70, clone this repository and install the dependencies:
+To get started with Game Performance 70, ensure you have Python 3.7+ installed. Then, clone the repository and install the required dependencies by running the following commands:
 
 ```bash
 git clone https://github.com/Developer/game-performance-70.git
@@ -19,20 +19,22 @@ cd game-performance-70
 pip install -r requirements.txt
 ```
 
-## Basic Usage
+## Basic Usage Example
 
-To get started with Game Performance 70, you can monitor your game by running the following command in your terminal:
+Once installed, you can launch the performance monitoring tool using the command line. To monitor a specific game, use the following command:
 
 ```bash
-python analyze.py path/to/your/game
+python performance_monitor.py --game <path_to_game_executable> --duration <duration_in_seconds>
 ```
 
-This command initiates the performance metrics collection for the specified game directory. You will receive a comprehensive report summarizing various performance indicators, enabling you to make informed optimization decisions.
+For example:
 
-## License
+```bash
+python performance_monitor.py --game "C:/Games/MyGame.exe" --duration 120
+```
 
-![MIT License](https://img.shields.io/badge/license-MIT-green.svg)
+This command will gather performance metrics for "MyGame.exe" over a two-minute duration.
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for more details. 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-For further information, support, or contribution guidelines, please refer to the documentation or open an issue. Your feedback is essential in making Game Performance 70 a valuable resource for the gaming community!
+Explore the potential of your game with Game Performance 70, and make the gaming experience better for everyone!
