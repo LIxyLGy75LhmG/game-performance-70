@@ -1,47 +1,35 @@
-import random
 import json
+import random
 
-class GameHandler:
-    def __init__(self):
-        self.valid_commands = ['start', 'stop', 'pause', 'resume']
-        self.state = 'stopped'
+class GameException(Exception):
+    pass
 
-    def validate_input(self, command):
-        if command not in self.valid_commands:
-            raise ValueError(f"Invalid command: {command}")
-        return command
+class InvalidPlayerError(GameException):
+    pass
 
-    def process_command(self, command):
-        command = self.validate_input(command)
-        if command == 'start':
-            self.state = 'running'
-            return self._start_game()
-        elif command == 'stop':
-            self.state = 'stopped'
-            return self._stop_game()
-        elif command == 'pause':
-            self.state = 'paused'
-            return self._pause_game()
-        elif command == 'resume':
-            self.state = 'running'
-            return self._resume_game()
+class Game:
+    def __init__(self, players):
+        self.players = players
+        self.validate_players()
 
-    def _start_game(self):
-        return json.dumps({'status': 'Game started', 'state': self.state})
+    def validate_players(self):
+        if len(self.players) < 2:
+            raise InvalidPlayerError("Must have at least 2 players.")
+        if not all(isinstance(player, str) for player in self.players):
+            raise InvalidPlayerError("All players must be strings.")
 
-    def _stop_game(self):
-        return json.dumps({'status': 'Game stopped', 'state': self.state})
+    def start_game(self):
+        try:
+            print(f'Starting game with players: {self.players}')
+            self.simulate_game()
+        except InvalidPlayerError as e:
+            print(f'Error: {str(e)}')
 
-    def _pause_game(self):
-        return json.dumps({'status': 'Game paused', 'state': self.state})
-
-    def _resume_game(self):
-        return json.dumps({'status': 'Game resumed', 'state': self.state})
+    def simulate_game(self):
+        winner = random.choice(self.players)
+        print(f'The winner is: {winner}')
 
 if __name__ == '__main__':
-    handler = GameHandler()
-    for command in ['start', 'pause', 'resume', 'stop', 'invalid']:
-        try:
-            print(handler.process_command(command))
-        except ValueError as e:
-            print(e)
+    players = ['Alice', 'Bob']  # Change this for testing
+    game = Game(players)
+    game.start_game()
