@@ -1,43 +1,47 @@
-import json
-import os
+from typing import Dict, Any, Optional
 
-DEFAULT_CONFIG = {
-    'fullscreen': False,
-    'resolution': '1920x1080',
-    'volume': 0.5,
-    'controls': {
-        'move_left': 'A',
-        'move_right': 'D',
-        'jump': 'SPACE',
-        'shoot': 'LEFT_MOUSE'
-    }
-}
+class Config:
+    def __init__(self, settings: Optional[Dict[str, Any]] = None) -> None:
+        """Initialize the Config with optional settings.
 
-class ConfigLoader:
-    def __init__(self, custom_config_path=None):
-        self.config = DEFAULT_CONFIG.copy()
-        if custom_config_path:
-            self.load_config(custom_config_path)
+        Args:
+            settings (Optional[Dict[str, Any]]): A dictionary of configuration settings.
+        """
+        self.settings = settings if settings else {}
 
-    def load_config(self, path):
-        if os.path.exists(path):
-            with open(path, 'r') as f:
-                custom_config = json.load(f)
-                self._merge_configs(self.config, custom_config)
-        else:
-            print(f"Warning: Config file '{path}' not found. Using defaults.")
+    def get(self, key: str, default: Any = None) -> Any:
+        """Retrieve a config value by key, or default if not found.
 
-    def _merge_configs(self, default, custom):
-        for key, value in custom.items():
-            if isinstance(value, dict) and key in default:
-                self._merge_configs(default[key], value)
-            else:
-                default[key] = value
+        Args:
+            key (str): The configuration key to retrieve.
+            default (Any): The default value to return if key is not found.
 
-    def get(self):
-        return self.config
+        Returns:
+            Any: The value associated with the key, or the default.
+        """
+        return self.settings.get(key, default)
 
-# Example usage
-if __name__ == '__main__':
-    loader = ConfigLoader('user_config.json')
-    print(loader.get())
+    def set(self, key: str, value: Any) -> None:
+        """Set a value for a given config key.
+
+        Args:
+            key (str): The configuration key to set.
+            value (Any): The value to associate with the key.
+        """
+        self.settings[key] = value
+
+    def load(self, config_dict: Dict[str, Any]) -> None:
+        """Load multiple configuration settings from a dictionary.
+
+        Args:
+            config_dict (Dict[str, Any]): A dictionary of settings to load.
+        """
+        self.settings.update(config_dict)
+
+    def __repr__(self) -> str:
+        """Return a string representation of the config settings.
+
+        Returns:
+            str: String representation of the settings.
+        """
+        return f"Config(settings={self.settings})"
