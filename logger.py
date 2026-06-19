@@ -1,17 +1,31 @@
 import logging
-from logging.handlers import RotatingFileHandler
+from typing import Any, Optional
 
+class GameLogger:
+    """Handles logging for the game application."""
 
-def setup_logger(log_file='game.log', max_bytes=5*1024*1024, backup_count=3):
-    logger = logging.getLogger('GameLogger')
-    logger.setLevel(logging.DEBUG)
-    handler = RotatingFileHandler(log_file, maxBytes=max_bytes, backupCount=backup_count)
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
-    return logger
+    def __init__(self, name: str, level: Optional[int] = logging.INFO) -> None:
+        """Initialize the logger with a specific name and log level."""
+        self.logger = logging.getLogger(name)
+        self.logger.setLevel(level)
+        ch = logging.StreamHandler()
+        ch.setLevel(level)
+        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+        ch.setFormatter(formatter)
+        self.logger.addHandler(ch)
 
+    def log_info(self, message: str, *args: Any) -> None:
+        """Log an informational message."""
+        self.logger.info(message, *args)
 
-if __name__ == '__main__':
-    test_logger = setup_logger()
-    test_logger.info('Logger setup complete.')
+    def log_warning(self, message: str, *args: Any) -> None:
+        """Log a warning message."""
+        self.logger.warning(message, *args)
+
+    def log_error(self, message: str, *args: Any) -> None:
+        """Log an error message."""
+        self.logger.error(message, *args)
+
+    def log_debug(self, message: str, *args: Any) -> None:
+        """Log a debug message."""
+        self.logger.debug(message, *args)
