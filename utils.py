@@ -1,29 +1,42 @@
-import time
-import random
+def calculate_fps(frame_times):
+    if not frame_times:
+        return 0
+    return len(frame_times) / sum(frame_times)
 
-class NetworkError(Exception):
-    pass
 
-def retry(operation, retries=3, delay=2):
-    for attempt in range(retries):
-        try:
-            return operation()
-        except NetworkError as e:
-            if attempt < retries - 1:
-                print(f"Attempt {attempt + 1} failed: {e}. Retrying...")
-                time.sleep(delay)
-            else:
-                print("All attempts failed.")
-                raise
+def limit_fps(max_fps):
+    frame_duration = 1.0 / max_fps
+    start_time = time.time()
 
-def network_operation():
-    if random.choice([True, False]):
-        raise NetworkError("Simulated network failure")
-    return "Success!"
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            elapsed = time.time() - start_time
+            if elapsed < frame_duration:
+                time.sleep(frame_duration - elapsed)
+            start_time = time.time()
+            return func(*args, **kwargs)
+        return wrapper
+    return decorator
 
-if __name__ == "__main__":
+
+def load_image(path):
     try:
-        result = retry(network_operation)
-        print(result)
-    except NetworkError:
-        print("Operation failed after retries.")
+        image = pygame.image.load(path)
+        return image
+    except pygame.error as e:
+        print(f'Error loading image: {e}')
+        return None
+
+
+def save_game_state(state, filename):
+    with open(filename, 'w') as f:
+        json.dump(state, f)
+
+
+def load_game_state(filename):
+    try:
+        with open(filename, 'r') as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError) as e:
+        print(f'Error loading game state: {e}')
+        return None
