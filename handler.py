@@ -1,35 +1,29 @@
 import json
-import random
 
-class GameException(Exception):
-    pass
+def load_game_data(file_path):
+    with open(file_path, 'r') as file:
+        return json.load(file)
 
-class InvalidPlayerError(GameException):
-    pass
 
-class Game:
-    def __init__(self, players):
-        self.players = players
-        self.validate_players()
+def save_game_data(file_path, data):
+    with open(file_path, 'w') as file:
+        json.dump(data, file, indent=4)
 
-    def validate_players(self):
-        if len(self.players) < 2:
-            raise InvalidPlayerError("Must have at least 2 players.")
-        if not all(isinstance(player, str) for player in self.players):
-            raise InvalidPlayerError("All players must be strings.")
 
-    def start_game(self):
-        try:
-            print(f'Starting game with players: {self.players}')
-            self.simulate_game()
-        except InvalidPlayerError as e:
-            print(f'Error: {str(e)}')
+def update_game_data(file_path, key, value):
+    data = load_game_data(file_path)
+    data[key] = value
+    save_game_data(file_path, data)
 
-    def simulate_game(self):
-        winner = random.choice(self.players)
-        print(f'The winner is: {winner}')
 
-if __name__ == '__main__':
-    players = ['Alice', 'Bob']  # Change this for testing
-    game = Game(players)
-    game.start_game()
+def filter_game_data(file_path, condition):
+    data = load_game_data(file_path)
+    filtered_data = {k: v for k, v in data.items() if condition(k, v)}
+    return filtered_data
+
+
+def merge_game_data(file_path_1, file_path_2, output_path):
+    data_1 = load_game_data(file_path_1)
+    data_2 = load_game_data(file_path_2)
+    merged_data = {**data_1, **data_2}
+    save_game_data(output_path, merged_data)
