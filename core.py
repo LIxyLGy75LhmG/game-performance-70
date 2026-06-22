@@ -1,23 +1,22 @@
 import numpy as np
 
-def optimize_game_performance(data):
-    unique_data = np.unique(data)
-    filtered_data = [d for d in unique_data if d > 0]
-    return filtered_data
+class GamePerformance:
+    def __init__(self):
+        self.data = np.random.rand(10000, 10)  # Simulated performance metrics
 
-class Game:
-    def __init__(self, player_data):
-        self.player_data = player_data
-        self.optimized_data = self.optimize_data()
-    
-    def optimize_data(self):
-        return optimize_game_performance(self.player_data)
-    
-    def play(self):
-        print("Game started with optimized data:")
-        print(self.optimized_data)
+    def optimize_performance(self):
+        self.filter_data()
+        self.analyze_data()
 
+    def filter_data(self):
+        self.data = self.data[self.data[:, 0] < 0.5]  # Example filtering condition
+
+    def analyze_data(self):
+        mean_performance = np.mean(self.data, axis=0)
+        return mean_performance
+
+# Usage Example:
 if __name__ == '__main__':
-    player_scores = [10, 20, 20, 0, -5, 30, 10]  
-    game = Game(player_scores)
-    game.play()
+    game_perf = GamePerformance()
+    game_perf.optimize_performance()  
+    print(game_perf.analyze_data())  # Display analyzed performance metrics
