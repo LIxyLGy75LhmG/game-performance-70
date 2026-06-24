@@ -1,30 +1,39 @@
-import time
+import json
 import random
-from functools import wraps
 
-def retry(retries=3, backoff=1.0, max_delay=60):
-    """Retry decorator with configurable parameters."""
-    def decorator(func):
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            attempt = 0
-            while attempt < retries:
-                try:
-                    return func(*args, **kwargs)
-                except Exception as e:
-                    attempt += 1
-                    if attempt < retries:
-                        sleep_time = min(backoff * (2 ** (attempt - 1)), max_delay)
-                        print(f'Attempt {attempt} failed: {e}, retrying in {sleep_time} seconds...')
-                        time.sleep(sleep_time)
-                    else:
-                        print('All retries failed.')
-                        raise
-        return wrapper
-    return decorator
+class GameDataHandler:
+    def __init__(self, file_path):
+        self.file_path = file_path
+        self.data = self.load_data()
 
-@retry(retries=5, backoff=1)
-def fetch_data_from_server(url):
-    if random.choice([True, False]):  # Simulate success or failure
-        raise ConnectionError('Simulated network failure.')
-    return {'data': 'some data from ' + url}
+    def load_data(self):
+        try:
+            with open(self.file_path, 'r') as file:
+                return json.load(file)
+        except FileNotFoundError:
+            return {}
+
+    def save_data(self):
+        with open(self.file_path, 'w') as file:
+            json.dump(self.data, file, indent=4)
+
+    def get_player_score(self, player_id):
+        return self.data.get(player_id, {}).get('score', 0)
+
+    def update_player_score(self, player_id, score):
+        if player_id not in self.data:
+            self.data[player_id] = {'score': 0}
+        self.data[player_id]['score'] += score
+        self.save_data()
+
+    def add_random_event(self):
+        event = random.choice(['found_item', 'defeated_enemy', 'completed_task'])
+        for player_id in self.data.keys():
+            if event == 'found_item':
+                self.data[player_id]['score'] += 10
+            elif event == 'defeated_enemy':
+                self.data[player_id]['score'] += 20
+            else:
+                self.data[player_id]['score'] += 5
+        self.save_data()
+
