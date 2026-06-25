@@ -1,28 +1,26 @@
-import time
-import random
+class GameError(Exception):
+    """Base class for all game-related exceptions."""
+    def __init__(self, message="An error occurred in the game!"):
+        super().__init__(message)
 
-class NetworkError(Exception):
-    pass
+class PlayerError(GameError):
+    """Exception raised for player-related issues."""
+    def __init__(self, player_name, message="Player error occurred!"):
+        super().__init__(f"{player_name}: {message}")
 
-def retry_on_failure(func, retries=3, delay=2):
-    for attempt in range(retries):
-        try:
-            return func()
-        except NetworkError as e:
-            print(f"Attempt {attempt + 1} failed: {e}")
-            if attempt < retries - 1:
-                wait_time = delay + random.uniform(0, 1)
-                print(f"Retrying in {wait_time:.2f} seconds...")
-                time.sleep(wait_time)
-            else:
-                print("All attempts failed.")
-                raise
+class LevelError(GameError):
+    """Exception raised for level-related issues."""
+    def __init__(self, level, message="Level error occurred!"):
+        super().__init__(f"Level {level}: {message}")
 
-# Example function to simulate network operation
-def network_operation():
-    if random.choice([True, False]):
-        raise NetworkError("Simulated network failure")
-    return "Network operation successful!"
+class ItemError(GameError):
+    """Exception raised for item-related issues."""
+    def __init__(self, item_name, message="Item error occurred!"):
+        super().__init__(f"Item '{item_name}': {message}")
 
-# Usage:
-# result = retry_on_failure(network_operation)
+class NetworkError(GameError):
+    """Exception raised for network-related issues."""
+    def __init__(self, message="Network error occurred!", code=0):
+        self.code = code
+        super().__init__(message)
+
