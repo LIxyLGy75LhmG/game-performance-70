@@ -1,30 +1,29 @@
-import time
-import random
-import requests
+import numpy as np
 
-def retry_network_operation(operation, retries=3, delay=2):
-    for attempt in range(retries):
-        try:
-            result = operation()
-            return result
-        except requests.ConnectionError as e:
-            print(f"ConnectionError: {e}. Attempt {attempt + 1} of {retries}.")
-            time.sleep(delay)
-        except requests.Timeout as e:
-            print(f"TimeoutError: {e}. Attempt {attempt + 1} of {retries}.")
-            time.sleep(delay)
-    raise Exception("Maximum retries exceeded.")
+class GameProcessor:
+    def __init__(self, entity_data):
+        self.entity_data = np.array(entity_data)
 
-def fetch_data(url):
-    print(f"Fetching data from {url}...")
-    response = requests.get(url)
-    response.raise_for_status()
-    return response.json()
+    def optimize_entity_processing(self):
+        active_entities_mask = self.entity_data[:, 0] == 1
+        optimized_entities = self.entity_data[active_entities_mask]
+        return self.process_entities(optimized_entities)
+
+    def process_entities(self, entities):
+        results = []
+        for entity in entities:
+            results.append(self.compute_entity_score(entity))
+        return np.array(results)
+
+    def compute_entity_score(self, entity):
+        score = (entity[1] * 0.5) + (entity[2] * 0.3) + (entity[3] * 0.2)
+        return score
 
 if __name__ == '__main__':
-    url = 'https://api.example.com/data'
-    try:
-        data = retry_network_operation(lambda: fetch_data(url))
-        print(data)
-    except Exception as e:
-        print(f"Failed to fetch data: {e}")
+    example_data = [
+        [1, 10, 20, 30],
+        [0, 15, 25, 35],
+        [1, 20, 30, 40],
+    ]
+    processor = GameProcessor(example_data)
+    print(processor.optimize_entity_processing())
