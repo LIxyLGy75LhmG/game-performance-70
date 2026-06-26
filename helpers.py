@@ -1,46 +1,36 @@
-def calculate_movement_speed(distance, time):
-    """
-    Calculate movement speed given distance and time.
-    :param distance: float, the distance traveled
-    :param time: float, the time taken
-    :return: float, speed in units per second
-    """
-    if time <= 0:
-        raise ValueError("Time must be greater than zero.")
-    return distance / time
+def load_game_data(file_path):
+    import json
+    with open(file_path, 'r') as file:
+        return json.load(file)
 
 
-def clamp(value, min_value, max_value):
-    """
-    Constrain a value between a minimum and maximum.
-    :param value: float, the value to clamp
-    :param min_value: float, the minimum limit
-    :param max_value: float, the maximum limit
-    :return: float, clamped value
-    """
-    return max(min_value, min(value, max_value))
+def save_game_data(file_path, data):
+    import json
+    with open(file_path, 'w') as file:
+        json.dump(data, file, indent=4)
 
 
-def linear_interpolation(start, end, factor):
-    """
-    Linearly interpolate between two values.
-    :param start: float, the starting value
-    :param end: float, the ending value
-    :param factor: float, the interpolation factor (0-1)
-    :return: float, interpolated value
-    """
-    if not (0 <= factor <= 1):
-        raise ValueError("Factor must be between 0 and 1.")
-    return start + (end - start) * factor
+def validate_player_name(name):
+    if not name or not isinstance(name, str):
+        raise ValueError('Invalid player name')
+    if len(name) < 3 or len(name) > 15:
+        raise ValueError('Player name must be between 3 and 15 characters')
+    return True
 
 
-def random_choice_from_list(lst):
-    """
-    Return a random element from a non-empty list.
-    :param lst: list, input list from which to choose
-    :return: random element from the list
-    """
-    if not lst:
-        raise ValueError("List cannot be empty.")
-    from random import choice
-    return choice(lst)
+def generate_unique_id(existing_ids):
+    import uuid
+    new_id = str(uuid.uuid4())
+    while new_id in existing_ids:
+        new_id = str(uuid.uuid4())
+    return new_id
+
+
+def calculate_score(base_score, level_multiplier):
+    return base_score * level_multiplier ** 2
+
+
+def format_time(seconds):
+    hours, remainder = divmod(seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    return f'{hours:02}:{minutes:02}:{seconds:02}'
