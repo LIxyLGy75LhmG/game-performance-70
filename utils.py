@@ -1,34 +1,26 @@
-import json
+import random
+import math
 
-def load_game_data(file_path):
-    """Load game data from a JSON file."""
-    try:
-        with open(file_path, 'r') as file:
-            data = json.load(file)
-        return data
-    except FileNotFoundError:
-        print(f"Error: {file_path} not found.")
-        return None
-    except json.JSONDecodeError:
-        print("Error: Failed to decode JSON.")
-        return None
+def generate_random_coordinates(x_range, y_range):
+    return (random.uniform(*x_range), random.uniform(*y_range))
 
 
-def save_game_data(file_path, data):
-    """Save game data to a JSON file."""
-    try:
-        with open(file_path, 'w') as file:
-            json.dump(data, file, indent=4)
-    except IOError:
-        print(f"Error: Could not write to {file_path}.")
+def normalize_vector(vector):
+    magnitude = math.sqrt(sum(i ** 2 for i in vector))
+    return tuple(i / magnitude for i in vector) if magnitude else (0, 0)
 
 
-def update_game_scores(scores, player, score):
-    """Update the game scores for a player."""
-    scores[player] = scores.get(player, 0) + score
+def lerp(start, end, t):
+    return start + (end - start) * t
 
 
-def get_top_scores(scores, n=5):
-    """Return the top N scores as a list of tuples."""
-    return sorted(scores.items(), key=lambda x: x[1], reverse=True)[:n
-}
+def clamp(value, min_value, max_value):
+    return max(min(value, max_value), min_value)
+
+
+def calculate_distance(point1, point2):
+    return math.sqrt(sum((a - b) ** 2 for a, b in zip(point1, point2)))
+
+
+def random_choice(choices):
+    return random.choice(choices)
