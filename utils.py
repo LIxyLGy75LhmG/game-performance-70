@@ -1,26 +1,33 @@
-import random
+import json
 import math
+import random
 
-def generate_random_coordinates(x_range, y_range):
-    return (random.uniform(*x_range), random.uniform(*y_range))
-
-
-def normalize_vector(vector):
-    magnitude = math.sqrt(sum(i ** 2 for i in vector))
-    return tuple(i / magnitude for i in vector) if magnitude else (0, 0)
-
-
-def lerp(start, end, t):
-    return start + (end - start) * t
-
-
-def clamp(value, min_value, max_value):
-    return max(min(value, max_value), min_value)
+def generate_random_player_stats(num_players):
+    stats = []
+    for _ in range(num_players):
+        player = {
+            'id': random.randint(1000, 9999),
+            'level': random.randint(1, 100),
+            'health': random.randint(50, 500),
+            'strength': random.randint(10, 100),
+            'agility': random.randint(5, 100),
+            'intelligence': random.randint(1, 100)
+        }
+        stats.append(player)
+    return stats
 
 
 def calculate_distance(point1, point2):
-    return math.sqrt(sum((a - b) ** 2 for a, b in zip(point1, point2)))
+    if len(point1) != 2 or len(point2) != 2:
+        raise ValueError('Both points must be of the form [x, y]')
+    return math.sqrt((point2[0] - point1[0]) ** 2 + (point2[1] - point1[1]) ** 2)
 
 
-def random_choice(choices):
-    return random.choice(choices)
+def save_stats_to_json(file_path, stats):
+    with open(file_path, 'w') as f:
+        json.dump(stats, f, indent=4)
+
+
+def load_stats_from_json(file_path):
+    with open(file_path, 'r') as f:
+        return json.load(f)
