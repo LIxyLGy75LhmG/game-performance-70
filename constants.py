@@ -1,36 +1,41 @@
-from typing import Tuple
+from typing import Final, Tuple
 
-# Game constants
+# Color constants
+BLACK: Final[Tuple[int, int, int]] = (0, 0, 0)
+WHITE: Final[Tuple[int, int, int]] = (255, 255, 255)
+RED: Final[Tuple[int, int, int]] = (255, 0, 0)
+GREEN: Final[Tuple[int, int, int]] = (0, 255, 0)
+BLUE: Final[Tuple[int, int, int]] = (0, 0, 255)
 
-SCREEN_WIDTH: int = 800
-SCREEN_HEIGHT: int = 600
-FPS: int = 60
+# Screen dimensions constants
+SCREEN_WIDTH: Final[int] = 800
+SCREEN_HEIGHT: Final[int] = 600
 
-COLOR_BLACK: Tuple[int, int, int] = (0, 0, 0)
-COLOR_WHITE: Tuple[int, int, int] = (255, 255, 255)
-COLOR_RED: Tuple[int, int, int] = (255, 0, 0)
-COLOR_GREEN: Tuple[int, int, int] = (0, 255, 0)
-COLOR_BLUE: Tuple[int, int, int] = (0, 0, 255)
+# Frame rate constants
+FPS: Final[int] = 60
 
-# Game States
+# Game state constants
+game_states: Final[dict[str, int]] = {
+    'MENU': 0,
+    'PLAYING': 1,
+    'PAUSED': 2,
+    'GAMEOVER': 3
+}
 
-class GameState:
-    MENU: str = "menu"
-    PLAYING: str = "playing"
-    PAUSED: str = "paused"
-    GAME_OVER: str = "game_over"
+def get_color(name: str) -> Tuple[int, int, int]:
+    """Retrieve RGB color based on name.
 
-    @staticmethod
-    def all_states() -> Tuple[str, ...]:
-        return (GameState.MENU, GameState.PLAYING, GameState.PAUSED, GameState.GAME_OVER)
+    Args:
+        name (str): The name of the color.
 
-# Difficulty Levels
-
-class Difficulty:
-    EASY: int = 1
-    MEDIUM: int = 2
-    HARD: int = 3
-
-    @staticmethod
-    def levels() -> Tuple[int, int, int]:
-        return (Difficulty.EASY, Difficulty.MEDIUM, Difficulty.HARD)
+    Returns:
+        Tuple[int, int, int]: RGB representation of the color.
+    """
+    colors = {
+        'black': BLACK,
+        'white': WHITE,
+        'red': RED,
+        'green': GREEN,
+        'blue': BLUE,
+    }
+    return colors.get(name.lower(), BLACK)  # Default to black if color not found
