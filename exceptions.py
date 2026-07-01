@@ -1,26 +1,27 @@
 class GameError(Exception):
-    """Base class for all game-related exceptions."""
-    def __init__(self, message="An error occurred in the game!"):
-        super().__init__(message)
+    """Base class for game exceptions."""
+    pass
 
-class PlayerError(GameError):
-    """Exception raised for player-related issues."""
-    def __init__(self, player_name, message="Player error occurred!"):
-        super().__init__(f"{player_name}: {message}")
+class InvalidDataError(GameError):
+    """Exception raised for invalid input data."""
+    def __init__(self, message="Invalid data provided."):
+        self.message = message
+        super().__init__(self.message)
 
-class LevelError(GameError):
-    """Exception raised for level-related issues."""
-    def __init__(self, level, message="Level error occurred!"):
-        super().__init__(f"Level {level}: {message}")
+class PlayerNotFoundError(GameError):
+    """Exception raised when a player is not found."""
+    def __init__(self, player_id):
+        self.message = f'Player with ID {player_id} not found.'
+        super().__init__(self.message)
 
-class ItemError(GameError):
-    """Exception raised for item-related issues."""
-    def __init__(self, item_name, message="Item error occurred!"):
-        super().__init__(f"Item '{item_name}': {message}")
+class GameStateError(GameError):
+    """Exception raised for invalid game state transitions."""
+    def __init__(self, state):
+        self.message = f'Cannot proceed from the current game state: {state}!'
+        super().__init__(self.message)
 
-class NetworkError(GameError):
-    """Exception raised for network-related issues."""
-    def __init__(self, message="Network error occurred!", code=0):
-        self.code = code
-        super().__init__(message)
-
+class InvalidActionError(GameError):
+    """Exception raised for illegal actions in the game."""
+    def __init__(self, action):
+        self.message = f'Action "{action}" is not allowed.'
+        super().__init__(self.message)
