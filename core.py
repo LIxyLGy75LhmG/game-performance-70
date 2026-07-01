@@ -1,22 +1,35 @@
-import numpy as np
+import time
+import random
 
-class GamePerformance:
+class Game:
     def __init__(self):
-        self.data = np.random.rand(10000, 10)  # Simulated performance metrics
+        self.state = 'initial'
+        self.players = []
 
-    def optimize_performance(self):
-        self.filter_data()
-        self.analyze_data()
+    def add_player(self, player_name):
+        self.players.append(player_name)
+        print(f'Player {player_name} added to the game.')
 
-    def filter_data(self):
-        self.data = self.data[self.data[:, 0] < 0.5]  # Example filtering condition
+    def simulate_game(self):
+        start_time = time.time()
+        while self.state != 'end':
+            action = self.random_action()
+            self.perform_action(action)
+            if len(self.players) >= 5:
+                self.state = 'end'
+        end_time = time.time()
+        print(f'Game finished in {end_time - start_time:.2f} seconds.')
 
-    def analyze_data(self):
-        mean_performance = np.mean(self.data, axis=0)
-        return mean_performance
+    def random_action(self):
+        actions = ['move', 'attack', 'defend']
+        return random.choice(actions)
 
-# Usage Example:
+    def perform_action(self, action):
+        time.sleep(0.1)  # Simulating some processing time
+        print(f'Performed action: {action}')  
+
 if __name__ == '__main__':
-    game_perf = GamePerformance()
-    game_perf.optimize_performance()  
-    print(game_perf.analyze_data())  # Display analyzed performance metrics
+    game = Game()
+    for name in ['Alice', 'Bob', 'Charlie', 'Diana', 'Eve']:
+        game.add_player(name)
+    game.simulate_game()
