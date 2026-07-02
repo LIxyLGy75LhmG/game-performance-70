@@ -1,28 +1,32 @@
 import time
 import random
+from functools import wraps
 
-def retry(operation, retries=3, delay=1, backoff=2):
-    attempts = 0
-    while attempts < retries:
-        try:
-            return operation()
-        except Exception as e:
-            attempts += 1
-            if attempts == retries:
-                print(f'Operation failed after {retries} attempts. Exception: {e}')
-                raise
-            print(f'Attempt {attempts} failed: {e}. Retrying in {delay} seconds...')
-            time.sleep(delay)
-            delay *= backoff
+def retry(max_attempts=3, delay=1):
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            attempts = 0
+            while attempts < max_attempts:
+                try:
+                    return func(*args, **kwargs)
+                except Exception as e:
+                    attempts += 1
+                    print(f"Attempt {attempts} failed: {e}")
+                    if attempts < max_attempts:
+                        time.sleep(delay)
+                        delay = min(delay * 2, 10)  # Exponential backoff
+            raise Exception(f'Failed after {max_attempts} attempts')
+        return wrapper
+    return decorator
 
-# Example Operation  
+@retry(max_attempts=5, delay=2)
 def network_operation():
-    # Simulate random network failure
-    if random.choice([True, False]):
-        raise ConnectionError('Simulated connection failure')
-    return 'Network operation succeeded!'
+    print("Trying network operation...")
+    if random.random() < 0.7:
+        raise ValueError('Simulated network failure')
+    return "Success!"
 
-# Execute with retry logic
 if __name__ == '__main__':
-    result = retry(network_operation)
+    result = network_operation()
     print(result)
