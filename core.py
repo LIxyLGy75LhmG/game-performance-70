@@ -1,35 +1,37 @@
-import time
-import random
+from typing import List, Dict, Any
 
 class Game:
-    def __init__(self):
-        self.state = 'initial'
-        self.players = []
+    def __init__(self, name: str, players: List[str]) -> None:
+        """Initialize a Game instance with a name and players."""
+        self.name = name
+        self.players = players
+        self.scores: Dict[str, int] = {player: 0 for player in players}
 
-    def add_player(self, player_name):
-        self.players.append(player_name)
-        print(f'Player {player_name} added to the game.')
+    def update_score(self, player: str, points: int) -> None:
+        """Update the score of a player."""
+        if player in self.scores:
+            self.scores[player] += points
+        else:
+            raise ValueError(f"Player {player} not found in game.")
 
-    def simulate_game(self):
-        start_time = time.time()
-        while self.state != 'end':
-            action = self.random_action()
-            self.perform_action(action)
-            if len(self.players) >= 5:
-                self.state = 'end'
-        end_time = time.time()
-        print(f'Game finished in {end_time - start_time:.2f} seconds.')
+    def get_winner(self) -> str:
+        """Determine the winner of the game based on scores."""
+        winner = max(self.scores, key=self.scores.get)
+        return winner
 
-    def random_action(self):
-        actions = ['move', 'attack', 'defend']
-        return random.choice(actions)
+    def game_summary(self) -> Dict[str, Any]:
+        """Return a summary of the game with scores."""
+        return {
+            'name': self.name,
+            'scores': self.scores,
+            'winner': self.get_winner()
+        }
 
-    def perform_action(self, action):
-        time.sleep(0.1)  # Simulating some processing time
-        print(f'Performed action: {action}')  
-
+# Example of how Game class can be used:
 if __name__ == '__main__':
-    game = Game()
-    for name in ['Alice', 'Bob', 'Charlie', 'Diana', 'Eve']:
-        game.add_player(name)
-    game.simulate_game()
+    game = Game("Ultimate Battle", ["Alice", "Bob", "Charlie"])
+    game.update_score("Alice", 10)
+    game.update_score("Bob", 15)
+    game.update_score("Charlie", 12)
+    summary = game.game_summary()
+    print(summary)
