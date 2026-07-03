@@ -1,29 +1,27 @@
-import numpy as np
+import time
+import random
 
-class GameProcessor:
-    def __init__(self, entity_data):
-        self.entity_data = np.array(entity_data)
+class NetworkError(Exception):
+    pass
 
-    def optimize_entity_processing(self):
-        active_entities_mask = self.entity_data[:, 0] == 1
-        optimized_entities = self.entity_data[active_entities_mask]
-        return self.process_entities(optimized_entities)
+def perform_network_operation():
+    if random.choice([True, False]):  # Simulate success or failure
+        return "Success!"
+    else:
+        raise NetworkError("Network operation failed.")
 
-    def process_entities(self, entities):
-        results = []
-        for entity in entities:
-            results.append(self.compute_entity_score(entity))
-        return np.array(results)
-
-    def compute_entity_score(self, entity):
-        score = (entity[1] * 0.5) + (entity[2] * 0.3) + (entity[3] * 0.2)
-        return score
+def retry_network_operation(max_retries=5, delay=2):
+    attempts = 0
+    while attempts < max_retries:
+        try:
+            result = perform_network_operation()
+            return result
+        except NetworkError as e:
+            attempts += 1
+            print(f"Attempt {attempts} failed: {e}")
+            time.sleep(delay)
+            delay *= 2  # Exponential backoff
+    return "All attempts failed after retries."
 
 if __name__ == '__main__':
-    example_data = [
-        [1, 10, 20, 30],
-        [0, 15, 25, 35],
-        [1, 20, 30, 40],
-    ]
-    processor = GameProcessor(example_data)
-    print(processor.optimize_entity_processing())
+    print(retry_network_operation())
