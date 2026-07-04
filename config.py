@@ -1,23 +1,33 @@
-import os
-import logging
-from logging.handlers import RotatingFileHandler
+import json
 
-def setup_logger(log_file='app.log', max_bytes=5*1024*1024, backup_count=3):
-    logger = logging.getLogger('game_logger')
-    logger.setLevel(logging.DEBUG)
-    
-    if not logger.handlers:
-        handler = RotatingFileHandler(log_file, maxBytes=max_bytes, backupCount=backup_count)
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-        handler.setFormatter(formatter)
-        logger.addHandler(handler)
-    return logger
+DEFAULT_CONFIG = {
+    'window_size': {'width': 800, 'height': 600},
+    'fps': 60,
+    'music_enabled': True,
+    'difficulty': 'normal',
+}
 
-logger = setup_logger()  # Initialize logger
+class ConfigLoader:
+    def __init__(self, filepath):
+        self.filepath = filepath
+
+    def load_config(self):
+        try:
+            with open(self.filepath, 'r') as file:
+                user_config = json.load(file)
+                return self._merge_configs(DEFAULT_CONFIG, user_config)
+        except (FileNotFoundError, json.JSONDecodeError):
+            return DEFAULT_CONFIG
+
+    def _merge_configs(self, defaults, user):
+        for key, value in user.items():
+            if isinstance(value, dict) and key in defaults:
+                defaults[key] = self._merge_configs(defaults[key], value)
+            else:
+                defaults[key] = value
+        return defaults
 
 if __name__ == '__main__':
-    logger.info('Logger setup complete.')
-    logger.debug('This is a debug message.')
-    logger.warning('This is a warning message.')
-    logger.error('This is an error message.')
-    logger.critical('This is a critical message.')
+    loader = ConfigLoader('config.json')
+    config = loader.load_config()
+    print(config)
