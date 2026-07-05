@@ -1,37 +1,32 @@
-from typing import List, Dict, Any
+import time
+import numpy as np
 
 class Game:
-    def __init__(self, name: str, players: List[str]) -> None:
-        """Initialize a Game instance with a name and players."""
-        self.name = name
-        self.players = players
-        self.scores: Dict[str, int] = {player: 0 for player in players}
+    def __init__(self, width, height):
+        self.width = width
+        self.height = height
+        self.board = np.zeros((height, width), dtype=int)
+        self.score = 0
 
-    def update_score(self, player: str, points: int) -> None:
-        """Update the score of a player."""
-        if player in self.scores:
-            self.scores[player] += points
-        else:
-            raise ValueError(f"Player {player} not found in game.")
+    def update_board(self):
+        # Simulating game logic with NumPy for optimization
+        new_blocks = np.random.randint(1, 5, size=(2, 2))
+        self.board[0:2, 0:2] = new_blocks
+        self.score += np.sum(new_blocks)
 
-    def get_winner(self) -> str:
-        """Determine the winner of the game based on scores."""
-        winner = max(self.scores, key=self.scores.get)
-        return winner
+    def render(self):
+        for row in self.board:
+            print(' '.join(map(str, row)))
+        print(f'Score: {self.score}')  
 
-    def game_summary(self) -> Dict[str, Any]:
-        """Return a summary of the game with scores."""
-        return {
-            'name': self.name,
-            'scores': self.scores,
-            'winner': self.get_winner()
-        }
+    def play_game(self, rounds):
+        for _ in range(rounds):
+            start_time = time.time()
+            self.update_board()
+            self.render()
+            end_time = time.time()
+            print(f'Round time: {end_time - start_time:.4f} seconds')
 
-# Example of how Game class can be used:
 if __name__ == '__main__':
-    game = Game("Ultimate Battle", ["Alice", "Bob", "Charlie"])
-    game.update_score("Alice", 10)
-    game.update_score("Bob", 15)
-    game.update_score("Charlie", 12)
-    summary = game.game_summary()
-    print(summary)
+    game = Game(5, 5)
+    game.play_game(3)
