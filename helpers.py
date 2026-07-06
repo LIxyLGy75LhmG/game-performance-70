@@ -1,40 +1,26 @@
+import time
 import random
 
-def generate_random_number(minimum, maximum):
-    if not isinstance(minimum, int) or not isinstance(maximum, int):
-        raise ValueError('Minimum and maximum must be integers.')
-    if minimum >= maximum:
-        raise ValueError('Minimum must be less than maximum.')
-    return random.randint(minimum, maximum)
+def retry_operation(max_retries=3, delay=2):
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            for attempt in range(max_retries):
+                try:
+                    return func(*args, **kwargs)
+                except Exception as e:
+                    if attempt < max_retries - 1:
+                        wait_time = random.uniform(1, delay)
+                        print(f"Attempt {attempt + 1} failed: {e}. Retrying in {wait_time:.2f} seconds...")
+                        time.sleep(wait_time)
+                    else:
+                        print(f"Attempt {attempt + 1} failed: {e}. No more retries.")
+                        raise
+        return wrapper
+    return decorator
 
-
-def is_valid_input(user_input):
-    return isinstance(user_input, int) and user_input >= 1
-
-
-def get_user_input():
-    while True:
-        try:
-            user_input = int(input('Enter a positive integer: '))
-            if is_valid_input(user_input):
-                return user_input
-            else:
-                print('Invalid input. Try again.')
-        except ValueError:
-            print('Please enter a valid integer.')
-
-
-def main_loop():
-    while True:
-        user_number = get_user_input()
-        print(f'You entered: {user_number}')
-        # Simulating game tick with random number generation
-        random_number = generate_random_number(1, 100)
-        print(f'Random number generated: {random_number}')
-        
-        continue_game = input('Do you want to continue? (y/n): ').strip().lower()
-        if continue_game != 'y':
-            break
-
-if __name__ == '__main__':
-    main_loop()
+@retry_operation(max_retries=5, delay=5)
+def network_request():
+    if random.choice([True, False]):
+        return "Success!"
+    else:
+        raise ConnectionError("Network issue occurred")
