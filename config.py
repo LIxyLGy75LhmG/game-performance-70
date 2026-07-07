@@ -1,53 +1,35 @@
-from typing import Dict, Any
+import json
+import os
 
-class Config:
-    """
-    Class to manage game configuration settings.
-    """
-    def __init__(self) -> None:
-        self.settings: Dict[str, Any] = {}
+DEFAULT_CONFIG = {
+    'screen_width': 1024,
+    'screen_height': 768,
+    'full_screen': False,
+    'volume': 0.5,
+    'language': 'en',
+}
 
-    def load(self, filepath: str) -> None:
-        """
-        Load configuration settings from a given file.
-        
-        Args:
-            filepath (str): Path to the configuration file.
-        """
-        with open(filepath, 'r') as file:
-            self.settings = eval(file.read())  # Replace with a safe parser in production
+class ConfigLoader:
+    def __init__(self, config_file='config.json'):
+        self.config_file = config_file
+        self.config = DEFAULT_CONFIG.copy()  # Start with defaults
+        self.load_config()
 
-    def get(self, key: str, default: Any = None) -> Any:
-        """
-        Get the value of a configuration key.
-        
-        Args:
-            key (str): The key for the desired configuration value.
-            default (Any): Default value to return if the key is not found.
-        
-        Returns:
-            Any: The value from the settings or the default.
-        """
-        return self.settings.get(key, default)
+    def load_config(self):
+        if os.path.isfile(self.config_file):
+            with open(self.config_file, 'r') as file:
+                try:
+                    user_config = json.load(file)
+                    self.config.update(user_config)
+                except json.JSONDecodeError:
+                    print('Error loading config: Invalid JSON. Using defaults.')
 
-    def set(self, key: str, value: Any) -> None:
-        """
-        Set a configuration key to a new value.
-        
-        Args:
-            key (str): The key to set.
-            value (Any): The value to assign to the key.
-        """
-        self.settings[key] = value
+    def get(self, key, default=None):
+        return self.config.get(key, default)
 
-    def save(self, filepath: str) -> None:
-        """
-        Save the current settings to a file.
-        
-        Args:
-            filepath (str): Path to save the configuration file.
-        """
-        with open(filepath, 'w') as file:
-            file.write(str(self.settings))
+    def set(self, key, value):
+        self.config[key] = value
 
-config = Config()
+# Example of usage
+# loader = ConfigLoader()
+# print(loader.get('volume'))
