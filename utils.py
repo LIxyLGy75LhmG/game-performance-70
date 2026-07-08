@@ -1,31 +1,30 @@
 import time
 import random
-from typing import Callable, Any
 
-def retry(operation: Callable[..., Any], retries: int = 3, delay: int = 2, backoff: float = 1.5) -> Any:
-    attempt = 0
-    while attempt < retries:
+def retry(func, max_retries=5, delay=1):
+    """Retry a function call a specified number of times with a delay."""
+    for attempt in range(max_retries):
         try:
-            return operation()
+            return func()
         except Exception as e:
-            print(f"Attempt {attempt + 1} failed: {e}")
-            attempt += 1
-            if attempt >= retries:
-                print("All attempts failed, raising exception.")
+            print(f'Attempt {attempt + 1} failed: {e}')
+            if attempt < max_retries - 1:
+                time.sleep(delay)
+            else:
+                print('All attempts failed.')
                 raise
-            time.sleep(delay)
-            delay *= backoff
 
-# Example usage with a network operation simulation
 
-def mock_network_operation():
+def network_operation():
+    """Simulate a network operation that may fail randomly."""
     if random.choice([True, False]):
-        raise ConnectionError("Network error occurred")
-    return "Success!"
+        raise Exception('Network error occurred.')
+    return 'Success!'
 
-if __name__ == "__main__":
+# Example usage
+if __name__ == '__main__':
     try:
-        result = retry(mock_network_operation)
+        result = retry(network_operation)
         print(result)
-    except Exception as e:
-        print(f"Final exception: {e}")
+    except Exception:
+        print('Unable to complete the network operation.')
