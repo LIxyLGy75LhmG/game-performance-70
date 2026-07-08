@@ -1,29 +1,31 @@
+import random
 import json
 
-def load_game_data(file_path):
-    with open(file_path, 'r') as file:
-        return json.load(file)
+class GameHandler:
+    def __init__(self):
+        self.player_score = 0
+        self.max_score = 100
 
+    def get_input(self):
+        while True:
+            try:
+                user_input = input('Enter your move (1-10): ')
+                move = int(user_input)
+                if 1 <= move <= 10:
+                    return move
+                else:
+                    print('Invalid input. Please enter a number between 1 and 10.')
+            except ValueError:
+                print('Invalid input. Please enter a valid number.')
 
-def save_game_data(file_path, data):
-    with open(file_path, 'w') as file:
-        json.dump(data, file, indent=4)
+    def play(self):
+        while self.player_score < self.max_score:
+            move = self.get_input()
+            self.player_score += move
+            print(f'Current score: {self.player_score}')
 
+        print('Congratulations, you reached the maximum score!')
 
-def update_game_data(file_path, key, value):
-    data = load_game_data(file_path)
-    data[key] = value
-    save_game_data(file_path, data)
-
-
-def filter_game_data(file_path, condition):
-    data = load_game_data(file_path)
-    filtered_data = {k: v for k, v in data.items() if condition(k, v)}
-    return filtered_data
-
-
-def merge_game_data(file_path_1, file_path_2, output_path):
-    data_1 = load_game_data(file_path_1)
-    data_2 = load_game_data(file_path_2)
-    merged_data = {**data_1, **data_2}
-    save_game_data(output_path, merged_data)
+if __name__ == '__main__':
+    game = GameHandler()
+    game.play()
