@@ -1,30 +1,30 @@
-import time
-import random
+import json
+import os
 
-def retry(func, max_retries=5, delay=1):
-    """Retry a function call a specified number of times with a delay."""
-    for attempt in range(max_retries):
-        try:
-            return func()
-        except Exception as e:
-            print(f'Attempt {attempt + 1} failed: {e}')
-            if attempt < max_retries - 1:
-                time.sleep(delay)
-            else:
-                print('All attempts failed.')
-                raise
+def load_game_data(file_path):
+    """Load game data from a JSON file."""
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"{file_path} does not exist.")
+    with open(file_path, 'r') as file:
+        return json.load(file)
 
 
-def network_operation():
-    """Simulate a network operation that may fail randomly."""
-    if random.choice([True, False]):
-        raise Exception('Network error occurred.')
-    return 'Success!'
+def save_game_data(file_path, data):
+    """Save game data to a JSON file."""
+    with open(file_path, 'w') as file:
+        json.dump(data, file, indent=4)
 
-# Example usage
+
+def update_game_data(file_path, updates):
+    """Update specific attributes in game data."""
+    data = load_game_data(file_path)
+    data.update(updates)
+    save_game_data(file_path, data)
+
+
 if __name__ == '__main__':
-    try:
-        result = retry(network_operation)
-        print(result)
-    except Exception:
-        print('Unable to complete the network operation.')
+    sample_data = {'score': 100, 'level': 1}
+    save_game_data('game_data.json', sample_data)
+    print(load_game_data('game_data.json'))
+    update_game_data('game_data.json', {'score': 150})
+    print(load_game_data('game_data.json'))
