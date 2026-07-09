@@ -1,32 +1,34 @@
-import time
-import numpy as np
+import random
 
-class Game:
-    def __init__(self, width, height):
-        self.width = width
-        self.height = height
-        self.board = np.zeros((height, width), dtype=int)
+class GameError(Exception):
+    pass
+
+class Player:
+    def __init__(self, name):
+        self.name = name
         self.score = 0
 
-    def update_board(self):
-        # Simulating game logic with NumPy for optimization
-        new_blocks = np.random.randint(1, 5, size=(2, 2))
-        self.board[0:2, 0:2] = new_blocks
-        self.score += np.sum(new_blocks)
+    def update_score(self, points):
+        if not isinstance(points, int):
+            raise GameError('Points must be an integer')
+        if points < 0:
+            raise GameError('Points cannot be negative')
+        self.score += points
 
-    def render(self):
-        for row in self.board:
-            print(' '.join(map(str, row)))
-        print(f'Score: {self.score}')  
-
-    def play_game(self, rounds):
-        for _ in range(rounds):
-            start_time = time.time()
-            self.update_board()
-            self.render()
-            end_time = time.time()
-            print(f'Round time: {end_time - start_time:.4f} seconds')
+def play_game(player):
+    try:
+        action = random.choice(['score', 'fail'])
+        if action == 'score':
+            points = random.randint(1, 100)
+            player.update_score(points)
+            print(f'{player.name} scored {points} points.')
+        else:
+            print(f'{player.name} failed this round.')
+    except GameError as e:
+        print(f'Error: {e}')
 
 if __name__ == '__main__':
-    game = Game(5, 5)
-    game.play_game(3)
+    player1 = Player('Alice')
+    for _ in range(5):
+        play_game(player1)
+    print(f'{player1.name} final score: {player1.score}')
