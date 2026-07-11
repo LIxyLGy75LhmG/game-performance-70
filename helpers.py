@@ -1,26 +1,46 @@
-import time
-import random
+from typing import List, Dict
 
-def retry_operation(max_retries=3, delay=2):
-    def decorator(func):
-        def wrapper(*args, **kwargs):
-            for attempt in range(max_retries):
-                try:
-                    return func(*args, **kwargs)
-                except Exception as e:
-                    if attempt < max_retries - 1:
-                        wait_time = random.uniform(1, delay)
-                        print(f"Attempt {attempt + 1} failed: {e}. Retrying in {wait_time:.2f} seconds...")
-                        time.sleep(wait_time)
-                    else:
-                        print(f"Attempt {attempt + 1} failed: {e}. No more retries.")
-                        raise
-        return wrapper
-    return decorator
 
-@retry_operation(max_retries=5, delay=5)
-def network_request():
-    if random.choice([True, False]):
-        return "Success!"
-    else:
-        raise ConnectionError("Network issue occurred")
+def calculate_frame_rate(frames: int, duration: float) -> float:
+    """
+    Calculate the frames per second (FPS).
+    
+    Args:
+        frames (int): The number of frames rendered.
+        duration (float): The time duration in seconds.
+    
+    Returns:
+        float: The calculated frames per second.
+    """
+    if duration <= 0:
+        raise ValueError("Duration must be greater than zero.")
+    return frames / duration
+
+
+def get_high_scores(scores: List[int]) -> Dict[str, int]:
+    """
+    Generates a dictionary of high scores and their ranks.
+    
+    Args:
+        scores (List[int]): A list of player scores.
+    
+    Returns:
+        Dict[str, int]: A dictionary with ranks as keys and scores as values.
+    """
+    sorted_scores = sorted(set(scores), reverse=True)
+    return {f'Rank {rank + 1}': score for rank, score in enumerate(sorted_scores)}
+
+
+def format_time(milliseconds: int) -> str:
+    """
+    Convert milliseconds to a formatted time string.
+    
+    Args:
+        milliseconds (int): Time in milliseconds.
+    
+    Returns:
+        str: Formatted time string in "mm:ss".
+    """
+    seconds = milliseconds // 1000
+    minutes, seconds = divmod(seconds, 60)
+    return f'{minutes:02}:{seconds:02}'
