@@ -1,27 +1,27 @@
-class GameError(Exception):
-    """Base class for game exceptions."""
+class InputValidationError(Exception):
     pass
 
-class InvalidDataError(GameError):
-    """Exception raised for invalid input data."""
-    def __init__(self, message="Invalid data provided."):
-        self.message = message
-        super().__init__(self.message)
+class GameProcessor:
+    def __init__(self):
+        self.valid_actions = ['move', 'jump', 'attack', 'defend']
 
-class PlayerNotFoundError(GameError):
-    """Exception raised when a player is not found."""
-    def __init__(self, player_id):
-        self.message = f'Player with ID {player_id} not found.'
-        super().__init__(self.message)
+    def validate_input(self, action):
+        if action not in self.valid_actions:
+            raise InputValidationError(f"Invalid action: {action}")
 
-class GameStateError(GameError):
-    """Exception raised for invalid game state transitions."""
-    def __init__(self, state):
-        self.message = f'Cannot proceed from the current game state: {state}!'
-        super().__init__(self.message)
+    def process_game_loop(self, input_actions):
+        for action in input_actions:
+            try:
+                self.validate_input(action)
+                self.execute_action(action)
+            except InputValidationError as e:
+                print(e)
 
-class InvalidActionError(GameError):
-    """Exception raised for illegal actions in the game."""
-    def __init__(self, action):
-        self.message = f'Action "{action}" is not allowed.'
-        super().__init__(self.message)
+    def execute_action(self, action):
+        print(f"Executing action: {action}")
+
+# Example of how the GameProcessor might be instantiated and used:
+if __name__ == '__main__':
+    game_processor = GameProcessor()
+    actions = ['move', 'jump', 'run']  # 'run' is an invalid action
+    game_processor.process_game_loop(actions)
