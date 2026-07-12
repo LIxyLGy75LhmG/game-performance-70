@@ -1,30 +1,29 @@
-import json
+import random
 
-class GameDataHandler:
-    def __init__(self, file_path):
-        self.file_path = file_path
+class CustomError(Exception):
+    pass
 
-    def read_data(self):
-        with open(self.file_path, 'r') as file:
-            return json.load(file)
 
-    def write_data(self, data):
-        with open(self.file_path, 'w') as file:
-            json.dump(data, file, indent=4)
+def divide_numbers(numerator, denominator):
+    try:
+        if denominator == 0:
+            raise CustomError('Denominator cannot be zero.')
+        result = numerator / denominator
+    except TypeError as e:
+        raise CustomError(f'Invalid input type: {e}')
+    return result
 
-    def update_data(self, new_data):
-        existing_data = self.read_data()
-        existing_data.update(new_data)
-        self.write_data(existing_data)
 
-    def filter_data(self, condition):
-        data = self.read_data()
-        return {k: v for k, v in data.items() if condition(v)}
+def random_choice(options):
+    if not isinstance(options, list) or len(options) == 0:
+        raise CustomError('Options must be a non-empty list.')
+    return random.choice(options)
 
-# Example usage
-if __name__ == '__main__':
-    handler = GameDataHandler('game_data.json')
-    print(handler.read_data())
-    handler.update_data({'player_score': 100})
-    filtered = handler.filter_data(lambda x: x > 50)
-    print(filtered)
+
+def safe_get(dictionary, key, default=None):
+    try:
+        return dictionary[key]
+    except KeyError:
+        return default
+    except TypeError as e:
+        raise CustomError(f'Invalid dictionary or key: {e}')
