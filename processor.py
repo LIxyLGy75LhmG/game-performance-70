@@ -1,32 +1,43 @@
-import json
 import random
-from typing import List, Dict
+import time
 
-class GameDataProcessor:
-    @staticmethod
-    def normalize_scores(scores: List[int]) -> List[float]:
-        max_score = max(scores) if scores else 0
-        return [(score / max_score) if max_score > 0 else 0 for score in scores]
+class GameProcessor:
+    def __init__(self):
+        self.score = 0
+        self.level = 1
+        self.is_running = True
 
-    @staticmethod
-    def average_score(scores: List[int]) -> float:
-        return sum(scores) / len(scores) if scores else 0.0
+    def start_game(self):
+        print("Game starting...")
+        while self.is_running:
+            self.play_round()
+            self.level_up()
+            time.sleep(1)  # Simulate time between rounds
 
-    @staticmethod
-    def generate_match_report(data: Dict[str, List[int]]) -> str:
-        report = {
-            'average_scores': {player: GameDataProcessor.average_score(scores) for player, scores in data.items()},
-            'normalized_scores': {player: GameDataProcessor.normalize_scores(scores) for player, scores in data.items()}
-        }
-        return json.dumps(report, indent=4)
+    def play_round(self):
+        print(f"Level {self.level}: Playing round...")
+        outcome = random.choice(['win', 'lose'])
+        if outcome == 'win':
+            self.update_score(10)
+            print(f"You won! Score: {self.score}")
+        else:
+            print("You lost this round.")
 
-    @staticmethod
-    def random_event_trigger(chance: float) -> bool:
-        return random.random() < chance
+    def update_score(self, points):
+        self.score += points
 
-    @staticmethod
-    def combine_report_data(report1: str, report2: str) -> str:
-        combined = json.loads(report1)
-        additional = json.loads(report2)
-        combined.update(additional)
-        return json.dumps(combined, indent=4)
+    def level_up(self):
+        if self.score >= self.level * 50:
+            self.level += 1
+            print(f"Congratulations! You've reached level {self.level}!")
+
+    def stop_game(self):
+        self.is_running = False
+        print("Game stopped.")
+
+if __name__ == '__main__':
+    processor = GameProcessor()
+    try:
+        processor.start_game()
+    except KeyboardInterrupt:
+        processor.stop_game()
