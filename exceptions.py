@@ -1,27 +1,28 @@
-class InputValidationError(Exception):
+class GameError(Exception):
+    """Base class for exceptions in the game."""
     pass
 
-class GameProcessor:
-    def __init__(self):
-        self.valid_actions = ['move', 'jump', 'attack', 'defend']
+class InvalidInputError(GameError):
+    """Exception raised for invalid input received from the player."""
+    def __init__(self, message: str) -> None:
+        super().__init__(message)
+        self.message = message
 
-    def validate_input(self, action):
-        if action not in self.valid_actions:
-            raise InputValidationError(f"Invalid action: {action}")
+class GameStateError(GameError):
+    """Exception raised when an operation is not allowed in the current game state."""
+    def __init__(self, state: str, message: str) -> None:
+        super().__init__(f"{state}: {message}")
+        self.state = state
+        self.message = message
 
-    def process_game_loop(self, input_actions):
-        for action in input_actions:
-            try:
-                self.validate_input(action)
-                self.execute_action(action)
-            except InputValidationError as e:
-                print(e)
+class ResourceNotFoundError(GameError):
+    """Exception raised when a requested resource is not found."""
+    def __init__(self, resource_name: str) -> None:
+        super().__init__(f"Resource '{resource_name}' not found.")
+        self.resource_name = resource_name
 
-    def execute_action(self, action):
-        print(f"Executing action: {action}")
-
-# Example of how the GameProcessor might be instantiated and used:
-if __name__ == '__main__':
-    game_processor = GameProcessor()
-    actions = ['move', 'jump', 'run']  # 'run' is an invalid action
-    game_processor.process_game_loop(actions)
+class NotAuthorizedError(GameError):
+    """Exception raised when a player attempts an unauthorized action."""
+    def __init__(self, action: str) -> None:
+        super().__init__(f"Not authorized to perform action: {action}")
+        self.action = action
