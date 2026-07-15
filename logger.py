@@ -1,29 +1,24 @@
 import logging
+from logging.handlers import RotatingFileHandler
 
-class CustomLogger:
-    def __init__(self, name):
-        self.logger = logging.getLogger(name)
-        self.logger.setLevel(logging.DEBUG)
-        ch = logging.StreamHandler()
-        ch.setLevel(logging.DEBUG)
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-        ch.setFormatter(formatter)
-        self.logger.addHandler(ch)
+def setup_logger(log_file='app.log', max_bytes=5 * 1024 * 1024, backup_count=3):
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.DEBUG)
 
-    def debug(self, msg):
-        self.logger.debug(msg)
+    handler = RotatingFileHandler(log_file, maxBytes=max_bytes, backupCount=backup_count)
+    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    handler.setFormatter(formatter)
 
-    def info(self, msg):
-        self.logger.info(msg)
+    if not logger.handlers:
+        logger.addHandler(handler)
 
-    def warning(self, msg):
-        self.logger.warning(msg)
+    return logger
 
-    def error(self, msg):
-        self.logger.error(msg)
-
-    def critical(self, msg):
-        self.logger.critical(msg)
-
-custom_logger = CustomLogger('game_logger')
-custom_logger.info('Logger initialized for game performance')
+# Example usage
+if __name__ == '__main__':
+    log = setup_logger()
+    log.debug('Debug message')
+    log.info('Info message')
+    log.warning('Warning message')
+    log.error('Error message')
+    log.critical('Critical message')
