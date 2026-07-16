@@ -1,29 +1,35 @@
-import random
+import json
 
-class CustomError(Exception):
-    pass
-
-
-def divide_numbers(numerator, denominator):
+def load_game_data(file_path):
     try:
-        if denominator == 0:
-            raise CustomError('Denominator cannot be zero.')
-        result = numerator / denominator
-    except TypeError as e:
-        raise CustomError(f'Invalid input type: {e}')
-    return result
+        with open(file_path, 'r') as file:
+            data = json.load(file)
+            return data
+    except FileNotFoundError:
+        raise Exception(f"File not found: {file_path}")
+    except json.JSONDecodeError:
+        raise Exception(f"Error decoding JSON from: {file_path}")
+    except Exception as e:
+        raise Exception(f"An error occurred: {str(e)}")
 
 
-def random_choice(options):
-    if not isinstance(options, list) or len(options) == 0:
-        raise CustomError('Options must be a non-empty list.')
-    return random.choice(options)
-
-
-def safe_get(dictionary, key, default=None):
+def save_game_data(file_path, data):
     try:
-        return dictionary[key]
-    except KeyError:
-        return default
-    except TypeError as e:
-        raise CustomError(f'Invalid dictionary or key: {e}')
+        with open(file_path, 'w') as file:
+            json.dump(data, file, indent=4)
+    except Exception as e:
+        raise Exception(f"Failed to save data: {str(e)}")
+
+
+def update_high_scores(scores, new_score):
+    scores.append(new_score)
+    return sorted(scores, reverse=True)[:10]
+
+
+def validate_game_state(state):
+    required_keys = ['level', 'score', 'lives']
+    for key in required_keys:
+        if key not in state:
+            raise ValueError(f'Missing required key: {key}') 
+    return True
+
