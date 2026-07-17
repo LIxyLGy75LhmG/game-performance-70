@@ -1,34 +1,33 @@
 import random
+import time
 
-class GameError(Exception):
-    pass
+class Game:
+    def __init__(self, players):
+        self.players = players
+        self.scores = {player: 0 for player in players}
 
-class Player:
-    def __init__(self, name):
-        self.name = name
-        self.score = 0
+    def play_round(self):
+        print("Starting a new round...")
+        for player in self.players:
+            score = self.roll_dice()  # Simulate rolling a dice
+            self.scores[player] += score
+            print(f"{player} rolled a {score}, total score: {self.scores[player]}")
+        print("Round finished.")
 
-    def update_score(self, points):
-        if not isinstance(points, int):
-            raise GameError('Points must be an integer')
-        if points < 0:
-            raise GameError('Points cannot be negative')
-        self.score += points
+    @staticmethod
+    def roll_dice():
+        return random.randint(1, 6)
 
-def play_game(player):
-    try:
-        action = random.choice(['score', 'fail'])
-        if action == 'score':
-            points = random.randint(1, 100)
-            player.update_score(points)
-            print(f'{player.name} scored {points} points.')
-        else:
-            print(f'{player.name} failed this round.')
-    except GameError as e:
-        print(f'Error: {e}')
+    def display_scores(self):
+        for player, score in self.scores.items():
+            print(f"{player}: {score} points")
 
-if __name__ == '__main__':
-    player1 = Player('Alice')
-    for _ in range(5):
-        play_game(player1)
-    print(f'{player1.name} final score: {player1.score}')
+    def start_game(self, rounds):
+        for _ in range(rounds):
+            self.play_round()
+            time.sleep(1)  # Simulating delay between rounds
+        self.display_scores()
+
+if __name__ == "__main__":
+    game = Game(players=["Alice", "Bob", "Charlie"])
+    game.start_game(rounds=5)
