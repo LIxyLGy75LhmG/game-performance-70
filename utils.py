@@ -1,35 +1,30 @@
 import json
+import os
 
 def load_game_data(file_path):
-    try:
-        with open(file_path, 'r') as file:
-            data = json.load(file)
-            return data
-    except FileNotFoundError:
-        raise Exception(f"File not found: {file_path}")
-    except json.JSONDecodeError:
-        raise Exception(f"Error decoding JSON from: {file_path}")
-    except Exception as e:
-        raise Exception(f"An error occurred: {str(e)}")
-
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"Game data file not found: {file_path}")
+    with open(file_path, 'r') as f:
+        data = json.load(f)
+    return data
 
 def save_game_data(file_path, data):
+    with open(file_path, 'w') as f:
+        json.dump(data, f, indent=4)
+
+def update_game_data(file_path, updates):
+    data = load_game_data(file_path)
+    data.update(updates)
+    save_game_data(file_path, data)
+
+class GameDataException(Exception):
+    pass
+
+# Example usage
+if __name__ == '__main__':
     try:
-        with open(file_path, 'w') as file:
-            json.dump(data, file, indent=4)
-    except Exception as e:
-        raise Exception(f"Failed to save data: {str(e)}")
-
-
-def update_high_scores(scores, new_score):
-    scores.append(new_score)
-    return sorted(scores, reverse=True)[:10]
-
-
-def validate_game_state(state):
-    required_keys = ['level', 'score', 'lives']
-    for key in required_keys:
-        if key not in state:
-            raise ValueError(f'Missing required key: {key}') 
-    return True
-
+        game_data = load_game_data('game_data.json')
+        print(game_data)
+        update_game_data('game_data.json', {'score': 100})
+    except GameDataException as e:
+        print(f"Error handling game data: {e}")
