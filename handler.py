@@ -1,31 +1,32 @@
+from typing import List, Dict, Any
 import random
-import json
 
-class GameHandler:
-    def __init__(self):
-        self.player_score = 0
-        self.max_score = 100
+class GameEvent:
+    def __init__(self, event_type: str, details: Dict[str, Any]) -> None:
+        self.event_type = event_type
+        self.details = details
 
-    def get_input(self):
-        while True:
-            try:
-                user_input = input('Enter your move (1-10): ')
-                move = int(user_input)
-                if 1 <= move <= 10:
-                    return move
-                else:
-                    print('Invalid input. Please enter a number between 1 and 10.')
-            except ValueError:
-                print('Invalid input. Please enter a valid number.')
+    def __str__(self) -> str:
+        return f"GameEvent(type={self.event_type}, details={self.details})"
 
-    def play(self):
-        while self.player_score < self.max_score:
-            move = self.get_input()
-            self.player_score += move
-            print(f'Current score: {self.player_score}')
+def generate_random_event() -> GameEvent:
+    event_types: List[str] = ['jump', 'run', 'shoot', 'cast_spell']
+    event_type: str = random.choice(event_types)
+    details: Dict[str, Any] = {'strength': random.randint(1, 100), 'accuracy': random.uniform(0.1, 1.0)}
+    return GameEvent(event_type, details)
 
-        print('Congratulations, you reached the maximum score!')
+def handle_event(event: GameEvent) -> None:
+    print(f"Handling event: {event}")
+    if event.event_type == 'shoot':
+        print(f"Shooting with strength {event.details['strength']} and accuracy {event.details['accuracy']}")
+    elif event.event_type == 'jump':
+        print("Jumping high!")
+    elif event.event_type == 'run':
+        print(f"Running with strength {event.details['strength']}")
+    elif event.event_type == 'cast_spell':
+        print("Casting a powerful spell!")
 
 if __name__ == '__main__':
-    game = GameHandler()
-    game.play()
+    for _ in range(5):
+        event = generate_random_event()
+        handle_event(event)
