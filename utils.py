@@ -1,30 +1,30 @@
 import json
 import os
 
-def load_game_data(file_path):
-    if not os.path.exists(file_path):
-        raise FileNotFoundError(f"Game data file not found: {file_path}")
-    with open(file_path, 'r') as f:
-        data = json.load(f)
-    return data
+class GameData:
+    def __init__(self, filename):
+        self.filename = filename
+        self.data = {}
+        self.load_data()
 
-def save_game_data(file_path, data):
-    with open(file_path, 'w') as f:
-        json.dump(data, f, indent=4)
+    def load_data(self):
+        if os.path.exists(self.filename):
+            with open(self.filename, 'r') as file:
+                self.data = json.load(file)
 
-def update_game_data(file_path, updates):
-    data = load_game_data(file_path)
-    data.update(updates)
-    save_game_data(file_path, data)
+    def save_data(self):
+        with open(self.filename, 'w') as file:
+            json.dump(self.data, file, indent=4)
 
-class GameDataException(Exception):
-    pass
+    def update_score(self, player_id, score):
+        if player_id not in self.data:
+            self.data[player_id] = {'score': 0}
+        self.data[player_id]['score'] += score
+        self.save_data()
 
-# Example usage
-if __name__ == '__main__':
-    try:
-        game_data = load_game_data('game_data.json')
-        print(game_data)
-        update_game_data('game_data.json', {'score': 100})
-    except GameDataException as e:
-        print(f"Error handling game data: {e}")
+    def get_score(self, player_id):
+        return self.data.get(player_id, {}).get('score', 0)
+
+    def reset_scores(self):
+        self.data = {}
+        self.save_data()
