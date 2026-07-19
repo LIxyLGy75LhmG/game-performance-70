@@ -1,33 +1,36 @@
-from typing import Tuple
+FPS_LIMIT = 60
+MAX_PLAYERS = 100
+GAME_TITLE = 'Epic Quest'
 
-# Game constants for better maintainability
+# Game state constants
+STATE_LOBBY = 'lobby'
+STATE_PLAYING = 'playing'
+STATE_PAUSED = 'paused'
+STATE_GAMEOVER = 'gameover'
 
-# Screen dimensions
-SCREEN_WIDTH: int = 800
-SCREEN_HEIGHT: int = 600
+# Difficulty settings
+DIFFICULTY_EASY = 'easy'
+DIFFICULTY_NORMAL = 'normal'
+DIFFICULTY_HARD = 'hard'
 
-# Colors
-BLACK: Tuple[int, int, int] = (0, 0, 0)
-WHITE: Tuple[int, int, int] = (255, 255, 255)
-RED: Tuple[int, int, int] = (255, 0, 0)
-GREEN: Tuple[int, int, int] = (0, 255, 0)
-BLUE: Tuple[int, int, int] = (0, 0, 255)
+# Color constants for UI
+COLOR_BACKGROUND = (0, 0, 0)
+COLOR_PLAYER = (0, 255, 0)
+COLOR_ENEMY = (255, 0, 0)
+COLOR_TEXT = (255, 255, 255)
 
-# Game settings
-FPS: int = 60
+# Misc constants
+GRAVITY = 9.81
+MAX_HEALTH = 100
+MIN_HEALTH = 0
+RELOAD_TIME = 2.5
+BULLET_SPEED = 10.0
 
-# Player settings
-PLAYER_LIVES: int = 3
-PLAYER_SPEED: float = 5.0
+# Audio constants
+MUSIC_VOLUME = 0.5
+SFX_VOLUME = 0.8
 
-# Enemy settings
-ENEMY_SPEED: float = 3.0
-
-def get_screen_size() -> Tuple[int, int]:
-    """Returns the screen width and height as a tuple."
-    return SCREEN_WIDTH, SCREEN_HEIGHT
-
-def get_color(name: str) -> Tuple[int, int, int]:
-    """Returns the RGB tuple for a given color name."""
-    colors = {'black': BLACK, 'white': WHITE, 'red': RED, 'green': GREEN, 'blue': BLUE}
-    return colors.get(name.lower(), WHITE)  # Default to WHITE if not found
+# GUI Constants
+BUTTON_HEIGHT = 50
+BUTTON_WIDTH = 200
+BUTTON_MARGIN = 10
