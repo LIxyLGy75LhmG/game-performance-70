@@ -1,27 +1,30 @@
-import time
-import numpy as np
+import random
+import json
 
-class PerformanceOptimizer:
-    def __init__(self, data):
-        self.data = data
+def validate_input(user_input):
+    if not isinstance(user_input, str):
+        raise ValueError('Input must be a string')
+    if len(user_input) < 1:
+        raise ValueError('Input cannot be empty')
+    if len(user_input) > 100:
+        raise ValueError('Input must not exceed 100 characters')
+    return True
 
-    def process_data(self):
-        start_time = time.time()
-        optimized_result = self._optimize_performance(self.data)
-        end_time = time.time()
-        print(f"Processing time: {end_time - start_time:.4f} seconds")
-        return optimized_result
+def main_processing_loop():
+    while True:
+        user_input = input('Enter your command (or type exit): ')
+        if user_input.lower() == 'exit':
+            break
+        try:
+            validate_input(user_input)
+            # Simulate processing the command
+            print(f'Processing command: {user_input}')
+            response = {'response': f'Command {user_input} processed successfully'}
+            print(json.dumps(response))
+        except ValueError as e:
+            print(e)
+        except Exception as e:
+            print('An unexpected error occurred:', str(e))
 
-    def _optimize_performance(self, data):
-        # Use numpy for faster computations
-        np_data = np.array(data)
-        # Apply a mock optimization: Just taking the mean
-        optimized_result = np.mean(np_data)
-        return optimized_result
-
-# Example usage
 if __name__ == '__main__':
-    data_sample = [1, 2, 3, 4, 5]*1000000  # Large dataset
-    optimizer = PerformanceOptimizer(data_sample)
-    result = optimizer.process_data()
-    print(f"Optimized Result: {result}")
+    main_processing_loop()
