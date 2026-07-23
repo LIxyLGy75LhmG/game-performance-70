@@ -1,43 +1,30 @@
-import random
-import math
+import json
+from typing import Any, Dict, List
 
 
-def roll_dice(sides=6, times=1):
-    return [random.randint(1, sides) for _ in range(times)]
+def load_game_data(file_path: str) -> List[Dict[str, Any]]:
+    with open(file_path, 'r') as file:
+        return json.load(file)
 
 
-def clamp(value, min_value, max_value):
-    return max(min_value, min(value, max_value))
+def save_game_data(file_path: str, data: List[Dict[str, Any]]) -> None:
+    with open(file_path, 'w') as file:
+        json.dump(data, file, indent=4)
 
 
-def lerp(start, end, t):
-    return start + (end - start) * t
+def filter_high_scores(data: List[Dict[str, Any]], threshold: int) -> List[Dict[str, Any]]:
+    return [record for record in data if record.get('score', 0) > threshold]
 
 
-def distance(point_a, point_b):
-    return math.sqrt((point_b[0] - point_a[0]) ** 2 + (point_b[1] - point_a[1]) ** 2)
+def average_score(data: List[Dict[str, Any]]) -> float:
+    scores = [record['score'] for record in data if 'score' in record]
+    return sum(scores) / len(scores) if scores else 0.0
 
 
-def is_power_of_two(n):
-    return (n & (n - 1)) == 0 and n > 0
-
-
-def factorial(n):
-    if n == 0:
-        return 1
-    return n * factorial(n - 1)
-
-
-def choose(n, k):
-    if k == 0:
-        return 1
-    return factorial(n) // (factorial(k) * factorial(n - k))
-
-
-def shuffle_list(items):
-    random.shuffle(items)
-    return items
-
-
-def get_random_choice(choices):
-    return random.choice(choices)
+def most_frequent_item(data: List[Dict[str, Any]], key: str) -> Any:
+    frequency = {}
+    for record in data:
+        item = record.get(key)
+        if item:
+            frequency[item] = frequency.get(item, 0) + 1
+    return max(frequency, key=frequency.get) if frequency else None
