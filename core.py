@@ -1,33 +1,43 @@
-import random
 import time
+import random
 
 class Game:
-    def __init__(self, players):
-        self.players = players
-        self.scores = {player: 0 for player in players}
+    def __init__(self):
+        self.entities = []
 
-    def play_round(self):
-        print("Starting a new round...")
-        for player in self.players:
-            score = self.roll_dice()  # Simulate rolling a dice
-            self.scores[player] += score
-            print(f"{player} rolled a {score}, total score: {self.scores[player]}")
-        print("Round finished.")
+    def add_entity(self, entity):
+        self.entities.append(entity)
 
-    @staticmethod
-    def roll_dice():
-        return random.randint(1, 6)
+    def run(self):
+        start_time = time.perf_counter()
+        self.update_entities()
+        self.render_entities()
+        end_time = time.perf_counter()
+        print(f'Frame processed in {end_time - start_time:.4f} seconds')
 
-    def display_scores(self):
-        for player, score in self.scores.items():
-            print(f"{player}: {score} points")
+    def update_entities(self):
+        for entity in self.entities:
+            entity.update()
 
-    def start_game(self, rounds):
-        for _ in range(rounds):
-            self.play_round()
-            time.sleep(1)  # Simulating delay between rounds
-        self.display_scores()
+    def render_entities(self):
+        for entity in self.entities:
+            entity.render()
 
-if __name__ == "__main__":
-    game = Game(players=["Alice", "Bob", "Charlie"])
-    game.start_game(rounds=5)
+class Entity:
+    def __init__(self, id):
+        self.id = id
+
+    def update(self):
+        # Simulated computation
+        time.sleep(random.uniform(0, 0.1))
+
+    def render(self):
+        # Simulate rendering delay
+        print(f'Rendering entity {self.id}')
+
+if __name__ == '__main__':
+    game = Game()
+    for i in range(10):
+        game.add_entity(Entity(i))
+    while True:
+        game.run()
