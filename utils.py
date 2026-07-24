@@ -1,30 +1,28 @@
 import json
-import os
+import random
+from typing import List, Dict
 
-class GameData:
-    def __init__(self, filename):
-        self.filename = filename
-        self.data = {}
-        self.load_data()
+def load_game_data(file_path: str) -> Dict:
+    try:
+        with open(file_path, 'r') as file:
+            return json.load(file)
+    except FileNotFoundError:
+        print(f'Error: {file_path} not found.')
+        return {}
+    except json.JSONDecodeError:
+        print('Error: Failed to decode JSON.')
+        return {}
 
-    def load_data(self):
-        if os.path.exists(self.filename):
-            with open(self.filename, 'r') as file:
-                self.data = json.load(file)
+def save_game_data(file_path: str, data: Dict) -> None:
+    with open(file_path, 'w') as file:
+        json.dump(data, file, indent=4)
 
-    def save_data(self):
-        with open(self.filename, 'w') as file:
-            json.dump(self.data, file, indent=4)
+def generate_random_event(events: List[str]) -> str:
+    return random.choice(events)
 
-    def update_score(self, player_id, score):
-        if player_id not in self.data:
-            self.data[player_id] = {'score': 0}
-        self.data[player_id]['score'] += score
-        self.save_data()
-
-    def get_score(self, player_id):
-        return self.data.get(player_id, {}).get('score', 0)
-
-    def reset_scores(self):
-        self.data = {}
-        self.save_data()
+# Example usage
+if __name__ == '__main__':
+    game_data = load_game_data('game_data.json')
+    if game_data:
+        event = generate_random_event(game_data.get('events', []))
+        print(f'Random event triggered: {event}')
