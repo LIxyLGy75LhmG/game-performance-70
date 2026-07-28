@@ -1,43 +1,26 @@
 import time
-import random
 
-class Game:
+class GameEngine:
     def __init__(self):
-        self.entities = []
-
-    def add_entity(self, entity):
-        self.entities.append(entity)
-
-    def run(self):
-        start_time = time.perf_counter()
-        self.update_entities()
-        self.render_entities()
-        end_time = time.perf_counter()
-        print(f'Frame processed in {end_time - start_time:.4f} seconds')
-
-    def update_entities(self):
-        for entity in self.entities:
-            entity.update()
-
-    def render_entities(self):
-        for entity in self.entities:
-            entity.render()
-
-class Entity:
-    def __init__(self, id):
-        self.id = id
+        self.fps = 60
+        self.last_update_time = time.time()
+        self.delta_time = 0
 
     def update(self):
-        # Simulated computation
-        time.sleep(random.uniform(0, 0.1))
+        current_time = time.time()
+        self.delta_time = current_time - self.last_update_time
+        if self.delta_time >= 1 / self.fps:
+            self.process_game_logic()
+            self.last_update_time = current_time
 
-    def render(self):
-        # Simulate rendering delay
-        print(f'Rendering entity {self.id}')
+    def process_game_logic(self):
+        # Game logic and updates happen here
+        print('Game logic updated')
+
+    def run(self):
+        while True:
+            self.update()
 
 if __name__ == '__main__':
-    game = Game()
-    for i in range(10):
-        game.add_entity(Entity(i))
-    while True:
-        game.run()
+    engine = GameEngine()
+    engine.run()
