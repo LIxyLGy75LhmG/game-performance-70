@@ -1,30 +1,39 @@
-import random
-import json
+import time
+import functools
 
-def validate_input(user_input):
-    if not isinstance(user_input, str):
-        raise ValueError('Input must be a string')
-    if len(user_input) < 1:
-        raise ValueError('Input cannot be empty')
-    if len(user_input) > 100:
-        raise ValueError('Input must not exceed 100 characters')
-    return True
+class PerformanceTracker:
+    def __init__(self):
+        self.execution_times = []
 
-def main_processing_loop():
-    while True:
-        user_input = input('Enter your command (or type exit): ')
-        if user_input.lower() == 'exit':
-            break
-        try:
-            validate_input(user_input)
-            # Simulate processing the command
-            print(f'Processing command: {user_input}')
-            response = {'response': f'Command {user_input} processed successfully'}
-            print(json.dumps(response))
-        except ValueError as e:
-            print(e)
-        except Exception as e:
-            print('An unexpected error occurred:', str(e))
+    def record_time(self, func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            start_time = time.time()
+            result = func(*args, **kwargs)
+            end_time = time.time()
+            self.execution_times.append(end_time - start_time)
+            print(f"{func.__name__} executed in {end_time - start_time:.6f} seconds")
+            return result
+        return wrapper
 
-if __name__ == '__main__':
-    main_processing_loop()
+    def get_average_time(self):
+        return sum(self.execution_times) / len(self.execution_times) if self.execution_times else 0
+
+performance_tracker = PerformanceTracker()
+
+@performance_tracker.record_time
+def heavy_computation(x):
+    result = 0
+    for i in range(x):
+        result += i ** 2
+    return result
+
+@performance_tracker.record_time
+def another_heavy_task(x):
+    time.sleep(x)  # Simulating long computation
+    return x * 2
+
+if __name__ == "__main__":
+    heavy_computation(10000)
+    another_heavy_task(2)
+    print(f"Average execution time: {performance_tracker.get_average_time():.6f} seconds")
