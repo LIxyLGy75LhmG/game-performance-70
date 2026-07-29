@@ -1,38 +1,28 @@
-from typing import Any, Dict
+import re
+
+def is_valid_username(username):
+    if not isinstance(username, str):
+        return False
+    return 3 <= len(username) <= 20 and re.match('^[a-zA-Z0-9_]+$', username) is not None
 
 
-def is_valid_score(score: int) -> bool:
-    """Check if the score is within valid range.
-
-    Args:
-        score (int): Score to validate.
-
-    Returns:
-        bool: True if score is valid, False otherwise.
-    """
-    return 0 <= score <= 100
+def is_valid_password(password):
+    if not isinstance(password, str):
+        return False
+    return (8 <= len(password) <= 16 and 
+            any(c.isdigit() for c in password) and 
+            any(c.isalpha() for c in password) and 
+            any(c in '!@#$%^&*()' for c in password))
 
 
-def has_required_fields(data: Dict[str, Any], required_fields: list) -> bool:
-    """Check if the required fields are present in the data.
-
-    Args:
-        data (Dict[str, Any]): Dictionary containing data to check.
-        required_fields (list): List of required field names.
-
-    Returns:
-        bool: True if all required fields are present, False otherwise.
-    """  
-    return all(field in data for field in required_fields)
+def is_valid_email(email):
+    if not isinstance(email, str):
+        return False
+    regex = r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$'
+    return re.match(regex, email) is not None
 
 
-def is_valid_username(username: str) -> bool:
-    """Validate the username according to specific rules.
-
-    Args:
-        username (str): Username to validate.
-
-    Returns:
-        bool: True if the username is valid, False otherwise.
-    """  
-    return username.isalnum() and 3 <= len(username) <= 20
+def validate_user_data(username, password, email):
+    return (is_valid_username(username) and 
+            is_valid_password(password) and 
+            is_valid_email(email))
