@@ -1,23 +1,37 @@
 import logging
-from logging.handlers import RotatingFileHandler
 
-def setup_logger(log_file='game.log', max_bytes=5 * 1024 * 1024, backup_count=3):
-    logger = logging.getLogger('GameLogger')
-    logger.setLevel(logging.DEBUG)
+class GameLogger:
+    def __init__(self, name):
+        self.logger = logging.getLogger(name)
+        handler = logging.FileHandler('game.log')
+        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+        handler.setFormatter(formatter)
+        self.logger.addHandler(handler)
+        self.logger.setLevel(logging.INFO)
 
-    handler = RotatingFileHandler(log_file, maxBytes=max_bytes, backupCount=backup_count)
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    handler.setFormatter(formatter)
+    def log_info(self, message):
+        self.logger.info(message)
 
-    if not logger.hasHandlers():
-        logger.addHandler(handler)
+    def log_warning(self, message):
+        self.logger.warning(message)
 
-    return logger
+    def log_error(self, message):
+        self.logger.error(message)
 
-if __name__ == '__main__':
-    log = setup_logger()
-    log.debug('This is a debug message')
-    log.info('Informational message logged')
-    log.warning('A warning has occurred')
-    log.error('An error occurred!', exc_info=True)
-    log.critical('Critical issue detected')
+    def log_performance(self, func):
+        import time
+        def wrapper(*args, **kwargs):
+            start_time = time.time()
+            result = func(*args, **kwargs)
+            end_time = time.time()
+            self.logger.info(f'Performance: {func.__name__} took {end_time - start_time:.4f} seconds')
+            return result
+        return wrapper
+
+# Example usage
+# logger = GameLogger('MyGame')  
+# @logger.log_performance
+# def some_game_function():
+#     # Game logic here
+  
+# some_game_function()
