@@ -1,30 +1,26 @@
 import json
 import os
 
-def load_config(config_file='config.json', defaults=None):
-    if defaults is None:
-        defaults = {}
-    
-    if not os.path.exists(config_file):
-        return defaults
-    
-    with open(config_file, 'r') as file:
-        try:
-            user_config = json.load(file)
-        except json.JSONDecodeError:
-            print('Error decoding JSON, using defaults')
-            return defaults
-    
-    # Merge defaults with user config, prioritize user settings
-    merged_config = {**defaults, **user_config}
-    return merged_config
+class ConfigLoader:
+    def __init__(self, default_config):
+        self.default_config = default_config
+        self.user_config = { }
 
-# Example default configuration
+    def load(self, filepath):
+        if os.path.isfile(filepath):
+            with open(filepath, 'r') as file:
+                self.user_config = json.load(file)
+
+    def get(self, key):
+        return self.user_config.get(key, self.default_config.get(key))
+
+    def get_all(self):
+        combined_config = self.default_config.copy()
+        combined_config.update(self.user_config)
+        return combined_config
+
 if __name__ == '__main__':
-    defaults = {
-        'resolution': '1920x1080',
-        'fullscreen': True,
-        'volume': 80
-    }
-    config = load_config(defaults=defaults)
-    print(config)
+    defaults = {'difficulty': 'normal', 'sound_volume': 50, 'resolution': '1920x1080'}
+    config_loader = ConfigLoader(defaults)
+    config_loader.load('user_config.json')
+    print(config_loader.get_all())
