@@ -1,28 +1,30 @@
-import re
+import time
+import random
+import requests
 
-def is_valid_username(username):
-    if not isinstance(username, str):
-        return False
-    return 3 <= len(username) <= 20 and re.match('^[a-zA-Z0-9_]+$', username) is not None
+class NetworkError(Exception):
+    pass
 
+def retry(operation, retries=3, delay=2):
+    for i in range(retries):
+        try:
+            return operation()
+        except NetworkError as e:
+            print(f"Attempt {i + 1} failed: {e}")
+            if i < retries - 1:
+                time.sleep(delay)
+    raise NetworkError("All attempts failed")
 
-def is_valid_password(password):
-    if not isinstance(password, str):
-        return False
-    return (8 <= len(password) <= 16 and 
-            any(c.isdigit() for c in password) and 
-            any(c.isalpha() for c in password) and 
-            any(c in '!@#$%^&*()' for c in password))
+def fetch_data(url):
+    if random.choice([True, False]):  # Simulating network error
+        raise NetworkError("Failed to fetch data")
+    response = requests.get(url)
+    return response.json()
 
-
-def is_valid_email(email):
-    if not isinstance(email, str):
-        return False
-    regex = r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$'
-    return re.match(regex, email) is not None
-
-
-def validate_user_data(username, password, email):
-    return (is_valid_username(username) and 
-            is_valid_password(password) and 
-            is_valid_email(email))
+if __name__ == "__main__":
+    url = "https://api.example.com/data"
+    try:
+        data = retry(lambda: fetch_data(url))
+        print("Data fetched successfully:", data)
+    except NetworkError:
+        print("Could not fetch data after multiple attempts")
