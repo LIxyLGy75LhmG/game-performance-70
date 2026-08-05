@@ -1,30 +1,22 @@
-import time
-import random
-import requests
+import re
 
-class NetworkError(Exception):
-    pass
+def validate_input(player_input):
+    if not isinstance(player_input, str):
+        raise ValueError('Input must be a string.')  
+    player_input = player_input.strip()
+    if len(player_input) == 0:
+        raise ValueError('Input cannot be empty.')
+    if not re.match('^[a-zA-Z0-9_]*$', player_input):
+        raise ValueError('Input contains invalid characters. Only alphanumeric and underscores are allowed.')
+    return player_input
 
-def retry(operation, retries=3, delay=2):
-    for i in range(retries):
+if __name__ == '__main__':
+    while True:
         try:
-            return operation()
-        except NetworkError as e:
-            print(f"Attempt {i + 1} failed: {e}")
-            if i < retries - 1:
-                time.sleep(delay)
-    raise NetworkError("All attempts failed")
-
-def fetch_data(url):
-    if random.choice([True, False]):  # Simulating network error
-        raise NetworkError("Failed to fetch data")
-    response = requests.get(url)
-    return response.json()
-
-if __name__ == "__main__":
-    url = "https://api.example.com/data"
-    try:
-        data = retry(lambda: fetch_data(url))
-        print("Data fetched successfully:", data)
-    except NetworkError:
-        print("Could not fetch data after multiple attempts")
+            user_input = input('Enter your command: ')
+            validated_input = validate_input(user_input)
+            print(f'Validated input: {validated_input}')
+        except ValueError as e:
+            print(f'Error: {e}')
+            continue
+        # Further processing with validated_input
