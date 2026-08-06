@@ -1,39 +1,56 @@
-import time
-import functools
+from typing import List, Dict, Any
 
-class PerformanceTracker:
-    def __init__(self):
-        self.execution_times = []
+class GameProcessor:
+    """
+    Class to handle game processing tasks.
+    """
+    def __init__(self, game_data: List[Dict[str, Any]]) -> None:
+        """
+        Initializes the GameProcessor with game data.
+        
+        :param game_data: List of dictionaries containing game information.
+        """
+        self.game_data = game_data
 
-    def record_time(self, func):
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            start_time = time.time()
-            result = func(*args, **kwargs)
-            end_time = time.time()
-            self.execution_times.append(end_time - start_time)
-            print(f"{func.__name__} executed in {end_time - start_time:.6f} seconds")
-            return result
-        return wrapper
+    def calculate_performance(self) -> Dict[str, float]:
+        """
+        Calculate the average performance metrics of the games.
+        
+        :return: Dictionary containing average FPS and memory usage.
+        """
+        total_fps = 0
+        total_memory = 0
+        num_games = len(self.game_data)
 
-    def get_average_time(self):
-        return sum(self.execution_times) / len(self.execution_times) if self.execution_times else 0
+        for game in self.game_data:
+            total_fps += game.get('fps', 0)
+            total_memory += game.get('memory_usage', 0)
 
-performance_tracker = PerformanceTracker()
+        return {
+            'average_fps': total_fps / num_games if num_games > 0 else 0,
+            'average_memory': total_memory / num_games if num_games > 0 else 0,
+        }
 
-@performance_tracker.record_time
-def heavy_computation(x):
-    result = 0
-    for i in range(x):
-        result += i ** 2
-    return result
+    def filter_games(self, min_fps: float) -> List[Dict[str, Any]]:
+        """
+        Filter games based on minimum FPS requirement.
+        
+        :param min_fps: Minimum FPS threshold to filter games.
+        :return: List of games that meet the FPS requirement.
+        """
+        return [game for game in self.game_data if game.get('fps', 0) >= min_fps]
 
-@performance_tracker.record_time
-def another_heavy_task(x):
-    time.sleep(x)  # Simulating long computation
-    return x * 2
+    def compute_average_frame_time(self) -> float:
+        """
+        Compute the average frame time from the game data.
+        
+        :return: Average frame time in milliseconds.
+        """
+        total_frame_time = 0
+        total_frames = 0
 
-if __name__ == "__main__":
-    heavy_computation(10000)
-    another_heavy_task(2)
-    print(f"Average execution time: {performance_tracker.get_average_time():.6f} seconds")
+        for game in self.game_data:
+            total_frame_time += game.get('frame_time', 0) * game.get('frame_count', 0)
+            total_frames += game.get('frame_count', 0)
+
+        return total_frame_time / total_frames if total_frames > 0 else 0
