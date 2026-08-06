@@ -1,38 +1,28 @@
+import time
 import random
-import logging
+import requests
 
-class GameError(Exception):
-    pass
-
-def load_resources(resource_files):
-    resources = {}
-    for file in resource_files:
+def retry_request(url, max_retries=5, backoff_factor=0.3, status_forcelist=(500, 502, 503, 504)):
+    retries = 0
+    while retries < max_retries:
         try:
-            if not file.endswith('.png') and not file.endswith('.mp3'):
-                raise GameError(f'Invalid resource type for {file}')
-            resources[file] = open(file, 'rb').read()
-        except FileNotFoundError:
-            logging.error(f'Resource file not found: {file}')
-        except GameError as ge:
-            logging.error(str(ge))
-        except Exception as e:
-            logging.exception('Unexpected error while loading resources')
-    return resources
+            response = requests.get(url)
+            if response.status_code not in status_forcelist:
+                return response
+            else:
+                print(f'Unexpected status code: {response.status_code}. Retrying...')
+        except requests.ConnectionError as e:
+            print(f'Connection error: {e}. Retrying...')
+        retries += 1
+        backoff_time = backoff_factor * (2 ** retries)
+        print(f'Waiting {backoff_time:.1f} seconds before retry...')
+        time.sleep(backoff_time)
+    raise Exception(f'Max retries exceeded for URL: {url}')
 
-# Function that randomly simulates player actions
-
-def simulate_player_action(player_id, action):
-    if action not in ['jump', 'run', 'shoot']:
-        logging.warning(f'Unknown action: {action} by player {player_id}')
-        return 'no action taken'
+# Example usage
+if __name__ == '__main__':
     try:
-        outcome = random.choice(['success', 'fail'])
-        if outcome == 'fail':
-            raise GameError(f'Action {action} failed for player {player_id}')
-        return f'Player {player_id} performed {action}'
-    except GameError as ge:
-        logging.error(str(ge))
-        return 'failure'
+        response = retry_request('https://example.com/api/data')
+        print('Data retrieved:', response.json())
     except Exception as e:
-        logging.exception('Unexpected error during action simulation')
-        return 'error'
+        print('Failed to retrieve data:', e)
