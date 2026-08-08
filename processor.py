@@ -1,56 +1,33 @@
-from typing import List, Dict, Any
+import numpy as np
 
 class GameProcessor:
-    """
-    Class to handle game processing tasks.
-    """
-    def __init__(self, game_data: List[Dict[str, Any]]) -> None:
-        """
-        Initializes the GameProcessor with game data.
-        
-        :param game_data: List of dictionaries containing game information.
-        """
-        self.game_data = game_data
+    def __init__(self, initial_state):
+        self.state = np.array(initial_state)
 
-    def calculate_performance(self) -> Dict[str, float]:
-        """
-        Calculate the average performance metrics of the games.
-        
-        :return: Dictionary containing average FPS and memory usage.
-        """
-        total_fps = 0
-        total_memory = 0
-        num_games = len(self.game_data)
+    def apply_action(self, action):
+        if action == 'move_left':
+            self.state[0] -= 1
+        elif action == 'move_right':
+            self.state[0] += 1
+        elif action == 'jump':
+            self.state[1] += 1
+        elif action == 'duck':
+            self.state[1] -= 1
 
-        for game in self.game_data:
-            total_fps += game.get('fps', 0)
-            total_memory += game.get('memory_usage', 0)
+    def get_current_state(self):
+        return self.state.tolist()
 
-        return {
-            'average_fps': total_fps / num_games if num_games > 0 else 0,
-            'average_memory': total_memory / num_games if num_games > 0 else 0,
-        }
+    def reset(self, new_state=None):
+        if new_state is None:
+            self.state = np.array([0, 0])  # Reset to origin
+        else:
+            self.state = np.array(new_state)
 
-    def filter_games(self, min_fps: float) -> List[Dict[str, Any]]:
-        """
-        Filter games based on minimum FPS requirement.
-        
-        :param min_fps: Minimum FPS threshold to filter games.
-        :return: List of games that meet the FPS requirement.
-        """
-        return [game for game in self.game_data if game.get('fps', 0) >= min_fps]
+    def is_game_over(self):
+        return self.state[1] < 0  # Example condition for game over
 
-    def compute_average_frame_time(self) -> float:
-        """
-        Compute the average frame time from the game data.
-        
-        :return: Average frame time in milliseconds.
-        """
-        total_frame_time = 0
-        total_frames = 0
+    def score_multiplier(self, score):
+        if self.state[0] > 10:
+            return score * 2
+        return score
 
-        for game in self.game_data:
-            total_frame_time += game.get('frame_time', 0) * game.get('frame_count', 0)
-            total_frames += game.get('frame_count', 0)
-
-        return total_frame_time / total_frames if total_frames > 0 else 0
