@@ -1,33 +1,30 @@
-import numpy as np
+import json
+from typing import List, Dict
 
-class GameProcessor:
-    def __init__(self, initial_state):
-        self.state = np.array(initial_state)
+class GameDataProcessor:
+    def __init__(self, data: List[Dict]):
+        self.data = data
 
-    def apply_action(self, action):
-        if action == 'move_left':
-            self.state[0] -= 1
-        elif action == 'move_right':
-            self.state[0] += 1
-        elif action == 'jump':
-            self.state[1] += 1
-        elif action == 'duck':
-            self.state[1] -= 1
+    def normalize_scores(self) -> List[Dict]:
+        max_score = max(item['score'] for item in self.data)
+        for item in self.data:
+            item['normalized_score'] = item['score'] / max_score
+        return self.data
 
-    def get_current_state(self):
-        return self.state.tolist()
+    def filter_by_player(self, player_name: str) -> List[Dict]:
+        return [item for item in self.data if item['player'] == player_name]
 
-    def reset(self, new_state=None):
-        if new_state is None:
-            self.state = np.array([0, 0])  # Reset to origin
-        else:
-            self.state = np.array(new_state)
+    def to_json(self) -> str:
+        return json.dumps(self.data, indent=4)
 
-    def is_game_over(self):
-        return self.state[1] < 0  # Example condition for game over
-
-    def score_multiplier(self, score):
-        if self.state[0] > 10:
-            return score * 2
-        return score
-
+# Example usage
+if __name__ == '__main__':
+    sample_data = [
+        {'player': 'Alice', 'score': 150},
+        {'player': 'Bob', 'score': 100},
+        {'player': 'Alice', 'score': 200},
+    ]
+    processor = GameDataProcessor(sample_data)
+    print(processor.normalize_scores())
+    print(processor.filter_by_player('Alice'))
+    print(processor.to_json())
