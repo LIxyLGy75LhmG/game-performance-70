@@ -1,32 +1,28 @@
-from typing import List, Dict, Any
-import random
+import json
+from typing import Any, Dict
 
-class GameEvent:
-    def __init__(self, event_type: str, details: Dict[str, Any]) -> None:
-        self.event_type = event_type
-        self.details = details
+class GameDataHandler:
+    def __init__(self, data: Dict[str, Any]):
+        self.data = data
 
-    def __str__(self) -> str:
-        return f"GameEvent(type={self.event_type}, details={self.details})"
+    def to_json(self) -> str:
+        return json.dumps(self.data)
 
-def generate_random_event() -> GameEvent:
-    event_types: List[str] = ['jump', 'run', 'shoot', 'cast_spell']
-    event_type: str = random.choice(event_types)
-    details: Dict[str, Any] = {'strength': random.randint(1, 100), 'accuracy': random.uniform(0.1, 1.0)}
-    return GameEvent(event_type, details)
+    def from_json(self, json_str: str) -> None:
+        self.data = json.loads(json_str)
 
-def handle_event(event: GameEvent) -> None:
-    print(f"Handling event: {event}")
-    if event.event_type == 'shoot':
-        print(f"Shooting with strength {event.details['strength']} and accuracy {event.details['accuracy']}")
-    elif event.event_type == 'jump':
-        print("Jumping high!")
-    elif event.event_type == 'run':
-        print(f"Running with strength {event.details['strength']}")
-    elif event.event_type == 'cast_spell':
-        print("Casting a powerful spell!")
+    def extract_attribute(self, key: str) -> Any:
+        return self.data.get(key, None)
+
+    def update_attribute(self, key: str, value: Any) -> None:
+        self.data[key] = value
+
+    def get_summary(self) -> Dict[str, Any]:
+        return {key: self.data[key] for key in self.data if isinstance(self.data[key], (int, float))}
 
 if __name__ == '__main__':
-    for _ in range(5):
-        event = generate_random_event()
-        handle_event(event)
+    sample_data = {'score': 100, 'level': 3, 'player': 'John', 'items': ['sword', 'shield']}
+    handler = GameDataHandler(sample_data)
+    print(handler.to_json())
+    handler.update_attribute('score', 150)
+    print(handler.get_summary())
