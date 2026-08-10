@@ -1,28 +1,39 @@
 import json
-from typing import Any, Dict
+import random
 
-class GameDataHandler:
-    def __init__(self, data: Dict[str, Any]):
-        self.data = data
+class GameHandler:
+    def __init__(self, game_data):
+        self.game_data = game_data
+        self.players = self.initialize_players()
 
-    def to_json(self) -> str:
-        return json.dumps(self.data)
+    def initialize_players(self):
+        return {player['id']: player for player in self.game_data['players']}
 
-    def from_json(self, json_str: str) -> None:
-        self.data = json.loads(json_str)
+    def start_game(self):
+        print('Starting game with players:', self.players)
+        self.game_rounds()
 
-    def extract_attribute(self, key: str) -> Any:
-        return self.data.get(key, None)
+    def game_rounds(self):
+        for round_number in range(1, 4):  # Assuming 3 rounds
+            print(f'Round {round_number}')
+            self.play_round()
 
-    def update_attribute(self, key: str, value: Any) -> None:
-        self.data[key] = value
+    def play_round(self):
+        current_player_id = random.choice(list(self.players.keys()))
+        player_action = self.get_player_action(current_player_id)
+        print(f'Player {current_player_id} performs action: {player_action}')
 
-    def get_summary(self) -> Dict[str, Any]:
-        return {key: self.data[key] for key in self.data if isinstance(self.data[key], (int, float))}
+    def get_player_action(self, player_id):
+        # Mock action selection (in a real game, this would be more complex)
+        actions = ['attack', 'defend', 'heal']
+        return random.choice(actions)
 
 if __name__ == '__main__':
-    sample_data = {'score': 100, 'level': 3, 'player': 'John', 'items': ['sword', 'shield']}
-    handler = GameDataHandler(sample_data)
-    print(handler.to_json())
-    handler.update_attribute('score', 150)
-    print(handler.get_summary())
+    game_data = json.loads('''{
+        "players": [
+            {"id": "1", "name": "Alice"},
+            {"id": "2", "name": "Bob"}
+        ]
+    }''')
+    game_handler = GameHandler(game_data)
+    game_handler.start_game()
