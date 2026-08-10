@@ -1,28 +1,64 @@
-import time
 import random
-import requests
 
-def retry_request(url, max_retries=5, backoff_factor=0.3, status_forcelist=(500, 502, 503, 504)):
-    retries = 0
-    while retries < max_retries:
-        try:
-            response = requests.get(url)
-            if response.status_code not in status_forcelist:
-                return response
-            else:
-                print(f'Unexpected status code: {response.status_code}. Retrying...')
-        except requests.ConnectionError as e:
-            print(f'Connection error: {e}. Retrying...')
-        retries += 1
-        backoff_time = backoff_factor * (2 ** retries)
-        print(f'Waiting {backoff_time:.1f} seconds before retry...')
-        time.sleep(backoff_time)
-    raise Exception(f'Max retries exceeded for URL: {url}')
+class GameError(Exception):
+    pass
+
+class Player:
+    def __init__(self, name):
+        self.name = name
+        self.health = 100
+        self.level = 1
+
+    def take_damage(self, amount):
+        if amount < 0:
+            raise GameError('Damage amount must be positive')
+        self.health -= amount
+        if self.health < 0:
+            self.health = 0
+        return self.health
+
+    def heal(self, amount):
+        if amount < 0:
+            raise GameError('Healing amount must be positive')
+        self.health += amount
+        if self.health > 100:
+            self.health = 100
+        return self.health
+
+class Game:
+    def __init__(self):
+        self.players = []
+
+    def add_player(self, name):
+        if not name:
+            raise GameError('Player name cannot be empty')
+        self.players.append(Player(name))
+
+    def deal_damage(self, player_name, damage):
+        player = self.find_player(player_name)
+        if player:
+            return player.take_damage(damage)
+        return None
+
+    def find_player(self, name):
+        for player in self.players:
+            if player.name == name:
+                return player
+        raise GameError('Player not found')
+
+    def heal_player(self, player_name, heal_amount):
+        player = self.find_player(player_name)
+        if player:
+            return player.heal(heal_amount)
+        return None
+
 
 # Example usage
 if __name__ == '__main__':
+    game = Game()
+    game.add_player('Player1')
     try:
-        response = retry_request('https://example.com/api/data')
-        print('Data retrieved:', response.json())
-    except Exception as e:
-        print('Failed to retrieve data:', e)
+        game.deal_damage('Player1', 20)  # Reduces health
+        game.heal_player('Player1', 10)  # Increases health
+    except GameError as e:
+        print(f'Error: {e}')
