@@ -1,26 +1,39 @@
-import json
-import os
+from typing import Dict, Any
 
-class ConfigLoader:
-    def __init__(self, default_config):
-        self.default_config = default_config
-        self.user_config = { }
+class GameConfig:
+    """
+    Class to handle game configuration settings.
+    """
+    def __init__(self, settings: Dict[str, Any]) -> None:
+        """
+        Initialize the GameConfig with a dictionary of settings.
+        
+        :param settings: A dictionary containing game configuration settings.
+        """
+        self.settings = settings
 
-    def load(self, filepath):
-        if os.path.isfile(filepath):
-            with open(filepath, 'r') as file:
-                self.user_config = json.load(file)
+    def get_setting(self, key: str) -> Any:
+        """
+        Retrieve the value of the specified setting.
+        
+        :param key: The key of the setting to retrieve.
+        :return: The value of the setting, or None if not found.
+        """
+        return self.settings.get(key, None)
 
-    def get(self, key):
-        return self.user_config.get(key, self.default_config.get(key))
+    def set_setting(self, key: str, value: Any) -> None:
+        """
+        Set the value of the specified setting.
+        
+        :param key: The key of the setting to update.
+        :param value: The new value for the setting.
+        """
+        self.settings[key] = value
 
-    def get_all(self):
-        combined_config = self.default_config.copy()
-        combined_config.update(self.user_config)
-        return combined_config
-
-if __name__ == '__main__':
-    defaults = {'difficulty': 'normal', 'sound_volume': 50, 'resolution': '1920x1080'}
-    config_loader = ConfigLoader(defaults)
-    config_loader.load('user_config.json')
-    print(config_loader.get_all())
+    def all_settings(self) -> Dict[str, Any]:
+        """
+        Retrieve all settings.
+        
+        :return: A dictionary of all settings.
+        """
+        return self.settings.copy()
