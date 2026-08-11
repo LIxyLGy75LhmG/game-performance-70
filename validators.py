@@ -1,22 +1,22 @@
 import re
 
-def validate_input(player_input):
-    if not isinstance(player_input, str):
-        raise ValueError('Input must be a string.')  
-    player_input = player_input.strip()
-    if len(player_input) == 0:
-        raise ValueError('Input cannot be empty.')
-    if not re.match('^[a-zA-Z0-9_]*$', player_input):
-        raise ValueError('Input contains invalid characters. Only alphanumeric and underscores are allowed.')
-    return player_input
+class InputValidator:
+    @staticmethod
+    def validate_username(username):
+        if not isinstance(username, str) or len(username) < 3:
+            raise ValueError('Username must be a string with at least 3 characters')
+        if not re.match('^[a-zA-Z0-9_]+$', username):
+            raise ValueError('Username can only contain alphanumeric characters and underscores')
+        return True
 
-if __name__ == '__main__':
-    while True:
-        try:
-            user_input = input('Enter your command: ')
-            validated_input = validate_input(user_input)
-            print(f'Validated input: {validated_input}')
-        except ValueError as e:
-            print(f'Error: {e}')
-            continue
-        # Further processing with validated_input
+    @staticmethod
+    def validate_score(score):
+        if not isinstance(score, int) or score < 0:
+            raise ValueError('Score must be a non-negative integer')
+        return True
+
+    @staticmethod
+    def validate_level(level):
+        if level not in ['easy', 'medium', 'hard']:
+            raise ValueError('Level must be one of the following: easy, medium, hard')
+        return True
