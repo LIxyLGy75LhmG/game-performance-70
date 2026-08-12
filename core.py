@@ -1,32 +1,35 @@
-import random
-import time
+import json
+from collections import defaultdict
 
-class Game:
-    def __init__(self, name):
-        self.name = name
-        self.score = 0
-        self.level = 1
+class GameDataHandler:
+    def __init__(self):
+        self.data = defaultdict(list)
 
-    def start(self):
-        print(f'Game {self.name} started!')
-        self.play()
+    def add_game_data(self, game_id, metrics):
+        self.data[game_id].append(metrics)
 
-    def play(self):
-        while self.score < 100:
-            self.score += random.randint(1, 20)
-            print(f'Score: {self.score}')
-            time.sleep(0.5)
-            if self.score % 30 == 0:
-                self.level_up()
+    def get_average_metrics(self, game_id):
+        if game_id not in self.data:
+            return None
+        total_metrics = defaultdict(int)
+        for metrics in self.data[game_id]:
+            for key, value in metrics.items():
+                total_metrics[key] += value
+        avg_metrics = {key: total / len(self.data[game_id]) for key, total in total_metrics.items()}
+        return avg_metrics
 
-    def level_up(self):
-        self.level += 1
-        print(f'Level up! You are now level {self.level}')
+    def export_to_json(self, filename):
+        with open(filename, 'w') as f:
+            json.dump(self.data, f, indent=4)
 
-    def end(self):
-        print(f'Game {self.name} ended with score: {self.score}')
+    def import_from_json(self, filename):
+        with open(filename, 'r') as f:
+            self.data = json.load(f)
 
-if __name__ == '__main__':
-    game = Game('Adventure')
-    game.start()
-    game.end()
+# Usage example:
+# handler = GameDataHandler()
+# handler.add_game_data('game_1', {'fps': 60, 'ping': 20})
+# handler.add_game_data('game_1', {'fps': 55, 'ping': 25})
+# print(handler.get_average_metrics('game_1'))
+# handler.export_to_json('game_data.json')
+# handler.import_from_json('game_data.json')
