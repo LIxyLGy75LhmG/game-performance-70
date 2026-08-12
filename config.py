@@ -1,39 +1,22 @@
-from typing import Dict, Any
+import os
 
-class GameConfig:
-    """
-    Class to handle game configuration settings.
-    """
-    def __init__(self, settings: Dict[str, Any]) -> None:
-        """
-        Initialize the GameConfig with a dictionary of settings.
-        
-        :param settings: A dictionary containing game configuration settings.
-        """
-        self.settings = settings
+class Config:
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    CONFIG_PATH = os.path.join(BASE_DIR, 'settings.json')
 
-    def get_setting(self, key: str) -> Any:
-        """
-        Retrieve the value of the specified setting.
-        
-        :param key: The key of the setting to retrieve.
-        :return: The value of the setting, or None if not found.
-        """
-        return self.settings.get(key, None)
+    @staticmethod
+    def get_config_value(key):
+        import json
+        with open(Config.CONFIG_PATH) as config_file:
+            config = json.load(config_file)
+            return config.get(key, None)
 
-    def set_setting(self, key: str, value: Any) -> None:
-        """
-        Set the value of the specified setting.
-        
-        :param key: The key of the setting to update.
-        :param value: The new value for the setting.
-        """
-        self.settings[key] = value
-
-    def all_settings(self) -> Dict[str, Any]:
-        """
-        Retrieve all settings.
-        
-        :return: A dictionary of all settings.
-        """
-        return self.settings.copy()
+    @staticmethod
+    def set_config_value(key, value):
+        import json
+        with open(Config.CONFIG_PATH, 'r+') as config_file:
+            config = json.load(config_file)
+            config[key] = value
+            config_file.seek(0)
+            json.dump(config, config_file, indent=4)
+            config_file.truncate()
