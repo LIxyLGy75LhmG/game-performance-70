@@ -1,22 +1,60 @@
-import re
+from typing import Any, Dict
 
-class InputValidator:
-    @staticmethod
-    def validate_username(username):
-        if not isinstance(username, str) or len(username) < 3:
-            raise ValueError('Username must be a string with at least 3 characters')
-        if not re.match('^[a-zA-Z0-9_]+$', username):
-            raise ValueError('Username can only contain alphanumeric characters and underscores')
-        return True
 
-    @staticmethod
-    def validate_score(score):
-        if not isinstance(score, int) or score < 0:
-            raise ValueError('Score must be a non-negative integer')
-        return True
+def validate_positive_integer(value: Any) -> int:
+    """
+    Validate that the provided value is a positive integer.
+    
+    Args:
+        value (Any): The value to validate.
+    
+    Raises:
+        ValueError: If the value is not a positive integer.
+    
+    Returns:
+        int: The validated positive integer.
+    """
+    if not isinstance(value, int) or value <= 0:
+        raise ValueError(f"{value} is not a positive integer.")
+    return value
 
-    @staticmethod
-    def validate_level(level):
-        if level not in ['easy', 'medium', 'hard']:
-            raise ValueError('Level must be one of the following: easy, medium, hard')
-        return True
+
+def validate_non_empty_string(value: Any) -> str:
+    """
+    Validate that the provided value is a non-empty string.
+    
+    Args:
+        value (Any): The value to validate.
+    
+    Raises:
+        ValueError: If the value is not a non-empty string.
+    
+    Returns:
+        str: The validated non-empty string.
+    """
+    if not isinstance(value, str) or not value:
+        raise ValueError(f"{value} is not a non-empty string.")
+    return value
+
+
+def validate_settings(settings: Dict[str, Any]) -> None:
+    """
+    Validate the game settings to ensure they meet required criteria.
+    
+    Args:
+        settings (Dict[str, Any]): The game settings dictionary to validate.
+    
+    Raises:
+        ValueError: If any settings are invalid.
+    """
+    try:
+        validate_positive_integer(settings['max_players'])
+        validate_non_empty_string(settings['game_name'])
+    except KeyError as e:
+        raise ValueError(f'Missing required setting: {e}')
+
+    
+# Example usage:
+if __name__ == '__main__':
+    game_settings = {'max_players': 5, 'game_name': 'Survival Arena'}
+    validate_settings(game_settings)
