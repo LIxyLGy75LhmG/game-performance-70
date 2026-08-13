@@ -1,60 +1,25 @@
-from typing import Any, Dict
+import re
+from typing import List, Tuple
 
+def validate_username(username: str) -> bool:
+    return bool(re.match(r'^[a-zA-Z0-9_]{3,16}$', username))
 
-def validate_positive_integer(value: Any) -> int:
-    """
-    Validate that the provided value is a positive integer.
-    
-    Args:
-        value (Any): The value to validate.
-    
-    Raises:
-        ValueError: If the value is not a positive integer.
-    
-    Returns:
-        int: The validated positive integer.
-    """
-    if not isinstance(value, int) or value <= 0:
-        raise ValueError(f"{value} is not a positive integer.")
-    return value
+def validate_email(email: str) -> bool:
+    email_regex = r'^[\w\.-]+@[\w\.-]+\.\w+$'
+    return bool(re.match(email_regex, email))
 
+def validate_password(password: str) -> Tuple[bool, List[str]]:
+    errors = []
+    if len(password) < 8:
+        errors.append('Password must be at least 8 characters')
+    if not re.search('[A-Za-z]', password):
+        errors.append('Password must contain at least one letter')
+    if not re.search('[0-9]', password):
+        errors.append('Password must contain at least one number')
+    return (len(errors) == 0, errors)
 
-def validate_non_empty_string(value: Any) -> str:
-    """
-    Validate that the provided value is a non-empty string.
-    
-    Args:
-        value (Any): The value to validate.
-    
-    Raises:
-        ValueError: If the value is not a non-empty string.
-    
-    Returns:
-        str: The validated non-empty string.
-    """
-    if not isinstance(value, str) or not value:
-        raise ValueError(f"{value} is not a non-empty string.")
-    return value
+def username_exists(username: str, existing_usernames: List[str]) -> bool:
+    return username in existing_usernames
 
-
-def validate_settings(settings: Dict[str, Any]) -> None:
-    """
-    Validate the game settings to ensure they meet required criteria.
-    
-    Args:
-        settings (Dict[str, Any]): The game settings dictionary to validate.
-    
-    Raises:
-        ValueError: If any settings are invalid.
-    """
-    try:
-        validate_positive_integer(settings['max_players'])
-        validate_non_empty_string(settings['game_name'])
-    except KeyError as e:
-        raise ValueError(f'Missing required setting: {e}')
-
-    
-# Example usage:
-if __name__ == '__main__':
-    game_settings = {'max_players': 5, 'game_name': 'Survival Arena'}
-    validate_settings(game_settings)
+def is_valid_game_id(game_id: str) -> bool:
+    return bool(re.match(r'^[a-f0-9]{24}$', game_id))
