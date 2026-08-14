@@ -1,30 +1,31 @@
-import json
-from typing import List, Dict
+class GameProcessor:
+    def __init__(self, game_data):
+        self.game_data = game_data
 
-class GameDataProcessor:
-    def __init__(self, data: List[Dict]):
-        self.data = data
+    def process_game(self):
+        try:
+            self.validate_data()
+            result = self.calculate_performance()
+            self.log_result(result)
+            return result
+        except Exception as e:
+            self.handle_error(e)
 
-    def normalize_scores(self) -> List[Dict]:
-        max_score = max(item['score'] for item in self.data)
-        for item in self.data:
-            item['normalized_score'] = item['score'] / max_score
-        return self.data
+    def validate_data(self):
+        if not isinstance(self.game_data, dict):
+            raise ValueError('Game data must be a dictionary')
+        if 'frames' not in self.game_data or 'time' not in self.game_data:
+            raise KeyError('Missing required game metrics')
 
-    def filter_by_player(self, player_name: str) -> List[Dict]:
-        return [item for item in self.data if item['player'] == player_name]
+    def calculate_performance(self):
+        frames = self.game_data['frames']
+        time = self.game_data['time']
+        if time <= 0:
+            raise ValueError('Time must be greater than zero')
+        return frames / time
 
-    def to_json(self) -> str:
-        return json.dumps(self.data, indent=4)
+    def log_result(self, result):
+        print(f'Performance: {result} FPS')
 
-# Example usage
-if __name__ == '__main__':
-    sample_data = [
-        {'player': 'Alice', 'score': 150},
-        {'player': 'Bob', 'score': 100},
-        {'player': 'Alice', 'score': 200},
-    ]
-    processor = GameDataProcessor(sample_data)
-    print(processor.normalize_scores())
-    print(processor.filter_by_player('Alice'))
-    print(processor.to_json())
+    def handle_error(self, error):
+        print(f'An error occurred: {error}')
