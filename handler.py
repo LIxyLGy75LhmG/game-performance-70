@@ -1,39 +1,32 @@
 import json
-import random
 
-class GameHandler:
-    def __init__(self, game_data):
-        self.game_data = game_data
-        self.players = self.initialize_players()
+class GameDataHandler:
+    def __init__(self, filepath):
+        self.filepath = filepath
+        self.data = self.load_data()
 
-    def initialize_players(self):
-        return {player['id']: player for player in self.game_data['players']}
+    def load_data(self):
+        try:
+            with open(self.filepath, 'r') as file:
+                return json.load(file)
+        except (FileNotFoundError, json.JSONDecodeError) as e:
+            print(f"Error loading data: {e}")
+            return {}
 
-    def start_game(self):
-        print('Starting game with players:', self.players)
-        self.game_rounds()
+    def save_data(self):
+        with open(self.filepath, 'w') as file:
+            json.dump(self.data, file, indent=4)
 
-    def game_rounds(self):
-        for round_number in range(1, 4):  # Assuming 3 rounds
-            print(f'Round {round_number}')
-            self.play_round()
+    def update_data(self, key, value):
+        self.data[key] = value
+        self.save_data()
 
-    def play_round(self):
-        current_player_id = random.choice(list(self.players.keys()))
-        player_action = self.get_player_action(current_player_id)
-        print(f'Player {current_player_id} performs action: {player_action}')
+    def get_data(self, key, default=None):
+        return self.data.get(key, default)
 
-    def get_player_action(self, player_id):
-        # Mock action selection (in a real game, this would be more complex)
-        actions = ['attack', 'defend', 'heal']
-        return random.choice(actions)
-
+# Example usage:
 if __name__ == '__main__':
-    game_data = json.loads('''{
-        "players": [
-            {"id": "1", "name": "Alice"},
-            {"id": "2", "name": "Bob"}
-        ]
-    }''')
-    game_handler = GameHandler(game_data)
-    game_handler.start_game()
+    handler = GameDataHandler('game_data.json')
+    handler.update_data('level', 5)
+    print(handler.get_data('level'))
+    print(handler.get_data('non_existent_key', 'Not Found'))
