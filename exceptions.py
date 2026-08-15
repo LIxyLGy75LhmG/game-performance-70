@@ -1,33 +1,27 @@
-import time
-import random
-
-class NetworkError(Exception):
+class GameError(Exception):
+    """Base class for game-related exceptions."""
     pass
 
-def retry_operation(operation, retries=3, delay=2):
-    for attempt in range(1, retries + 1):
-        try:
-            return operation()
-        except NetworkError as e:
-            print(f"Attempt {attempt} failed: {e}")
-            if attempt < retries:
-                wait_time = delay * (2 ** (attempt - 1)) + random.uniform(0, 1)
-                print(f"Retrying in {wait_time:.2f} seconds...")
-                time.sleep(wait_time)
-            else:
-                print("Max retries exceeded.")
-                raise
+class PlayerNotFoundError(GameError):
+    """Exception raised when a player is not found."""
+    def __init__(self, player_id):
+        super().__init__(f'Player with ID {player_id} not found.')
+        self.player_id = player_id
 
-# Example operation simulating network request
+class GameOverError(GameError):
+    """Exception raised when game is over."""
+    def __init__(self, reason):
+        super().__init__(f'Game is over: {reason}')
+        self.reason = reason
 
-def simulated_network_request():
-    if random.random() < 0.7:
-        raise NetworkError("Simulated network failure.")
-    return "Success!"
+class InvalidMoveError(GameError):
+    """Exception raised for invalid moves in the game."""
+    def __init__(self, move):
+        super().__init__(f'Invalid move: {move}')
+        self.move = move
 
-if __name__ == "__main__":
-    try:
-        result = retry_operation(simulated_network_request, retries=5)
-        print(result)
-    except NetworkError:
-        print("Operation failed after all retries.")
+class ResourceNotFoundError(GameError):
+    """Exception raised when requested resource is not found."""
+    def __init__(self, resource_id):
+        super().__init__(f'Resource {resource_id} not found.')
+        self.resource_id = resource_id
