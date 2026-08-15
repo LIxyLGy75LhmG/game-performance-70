@@ -1,22 +1,30 @@
+import json
 import os
 
-class Config:
-    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-    CONFIG_PATH = os.path.join(BASE_DIR, 'settings.json')
+class ConfigLoader:
+    def __init__(self, default_config: dict, config_path: str = 'config.json'):
+        self.default_config = default_config
+        self.config_path = config_path
+        self.config = self.load_config()
 
-    @staticmethod
-    def get_config_value(key):
-        import json
-        with open(Config.CONFIG_PATH) as config_file:
-            config = json.load(config_file)
-            return config.get(key, None)
+    def load_config(self) -> dict:
+        if os.path.exists(self.config_path):
+            with open(self.config_path, 'r') as file:
+                user_config = json.load(file)
+            return {**self.default_config, **user_config}
+        return self.default_config
 
-    @staticmethod
-    def set_config_value(key, value):
-        import json
-        with open(Config.CONFIG_PATH, 'r+') as config_file:
-            config = json.load(config_file)
-            config[key] = value
-            config_file.seek(0)
-            json.dump(config, config_file, indent=4)
-            config_file.truncate()
+    def get(self, key, default=None):
+        return self.config.get(key, default)
+
+# Sample default config
+DEFAULT_CONFIG = {
+    'resolution': '1920x1080',
+    'fullscreen': True,
+    'volume': 75,
+    'language': 'en'
+}
+
+if __name__ == '__main__':
+    config_loader = ConfigLoader(DEFAULT_CONFIG)
+    print(config_loader.get('resolution'))  # Output default resolution
