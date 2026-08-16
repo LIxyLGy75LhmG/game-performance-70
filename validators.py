@@ -1,25 +1,31 @@
 import re
-from typing import List, Tuple
 
-def validate_username(username: str) -> bool:
-    return bool(re.match(r'^[a-zA-Z0-9_]{3,16}$', username))
+class InputValidator:
+    def __init__(self):
+        self.patterns = {
+            'username': re.compile(r'^[a-zA-Z0-9]{3,}$'),
+            'email': re.compile(r'^[\w\.-]+@[a-zA-Z\.-]+\.[a-zA-Z]{2,}$'),
+            'password': re.compile(r'^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{6,}$')
+        }
 
-def validate_email(email: str) -> bool:
-    email_regex = r'^[\w\.-]+@[\w\.-]+\.\w+$'
-    return bool(re.match(email_regex, email))
+    def validate_username(self, username: str) -> bool:
+        return bool(self.patterns['username'].match(username))
 
-def validate_password(password: str) -> Tuple[bool, List[str]]:
-    errors = []
-    if len(password) < 8:
-        errors.append('Password must be at least 8 characters')
-    if not re.search('[A-Za-z]', password):
-        errors.append('Password must contain at least one letter')
-    if not re.search('[0-9]', password):
-        errors.append('Password must contain at least one number')
-    return (len(errors) == 0, errors)
+    def validate_email(self, email: str) -> bool:
+        return bool(self.patterns['email'].match(email))
 
-def username_exists(username: str, existing_usernames: List[str]) -> bool:
-    return username in existing_usernames
+    def validate_password(self, password: str) -> bool:
+        return bool(self.patterns['password'].match(password))
 
-def is_valid_game_id(game_id: str) -> bool:
-    return bool(re.match(r'^[a-f0-9]{24}$', game_id))
+    def validate_all(self, username: str, email: str, password: str) -> dict:
+        return {
+            'username': self.validate_username(username),
+            'email': self.validate_email(email),
+            'password': self.validate_password(password)
+        }
+
+# Example validation usage
+if __name__ == '__main__':
+    validator = InputValidator()
+    result = validator.validate_all('user1', 'user@example.com', 'pass123')
+    print(result)
