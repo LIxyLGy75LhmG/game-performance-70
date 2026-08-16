@@ -1,31 +1,30 @@
+import numpy as np
+
 class GameProcessor:
-    def __init__(self, game_data):
-        self.game_data = game_data
+    def __init__(self):
+        self.frames = []
 
-    def process_game(self):
-        try:
-            self.validate_data()
-            result = self.calculate_performance()
-            self.log_result(result)
-            return result
-        except Exception as e:
-            self.handle_error(e)
+    def add_frame(self, frame):
+        self.frames.append(frame)
 
-    def validate_data(self):
-        if not isinstance(self.game_data, dict):
-            raise ValueError('Game data must be a dictionary')
-        if 'frames' not in self.game_data or 'time' not in self.game_data:
-            raise KeyError('Missing required game metrics')
+    def optimize_frames(self):
+        if not self.frames:
+            return
+        
+        # Using numpy for batch processing of frames
+        frame_array = np.array(self.frames)
+        optimized = np.mean(frame_array, axis=0)
+        self.frames = optimized.tolist()
+        
+    def process(self):
+        self.optimize_frames()
+        # Further processing logic
+        return self.frames
 
-    def calculate_performance(self):
-        frames = self.game_data['frames']
-        time = self.game_data['time']
-        if time <= 0:
-            raise ValueError('Time must be greater than zero')
-        return frames / time
-
-    def log_result(self, result):
-        print(f'Performance: {result} FPS')
-
-    def handle_error(self, error):
-        print(f'An error occurred: {error}')
+# Usage example
+if __name__ == '__main__':
+    processor = GameProcessor()
+    for _ in range(10):
+        processor.add_frame(np.random.rand(100, 100))
+    processed_frames = processor.process()
+    print(processed_frames)
