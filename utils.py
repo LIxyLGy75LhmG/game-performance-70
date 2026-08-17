@@ -1,28 +1,30 @@
-import json
+import time
 import random
-from typing import List, Dict
+import requests
 
-def load_game_data(file_path: str) -> Dict:
-    try:
-        with open(file_path, 'r') as file:
-            return json.load(file)
-    except FileNotFoundError:
-        print(f'Error: {file_path} not found.')
-        return {}
-    except json.JSONDecodeError:
-        print('Error: Failed to decode JSON.')
-        return {}
+def retry_network_operation(operation, retries=3, delay=2):
+    for attempt in range(retries):
+        try:
+            response = operation()
+            if response.ok:
+                return response.json()
+            else:
+                print(f"Attempt {attempt + 1}: Received non-200 response: {response.status_code}")
+        except requests.exceptions.RequestException as e:
+            print(f"Attempt {attempt + 1}: Network error: {e}")
+        time.sleep(delay)
+    raise Exception(f"Failed after {retries} attempts.")
 
-def save_game_data(file_path: str, data: Dict) -> None:
-    with open(file_path, 'w') as file:
-        json.dump(data, file, indent=4)
+# Example operation function
 
-def generate_random_event(events: List[str]) -> str:
-    return random.choice(events)
+def fetch_data():
+    url = "https://api.example.com/data"
+    return requests.get(url)
 
-# Example usage
+# Usage
 if __name__ == '__main__':
-    game_data = load_game_data('game_data.json')
-    if game_data:
-        event = generate_random_event(game_data.get('events', []))
-        print(f'Random event triggered: {event}')
+    try:
+        data = retry_network_operation(fetch_data)
+        print(data)
+    except Exception as e:
+        print(e)
