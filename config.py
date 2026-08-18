@@ -1,30 +1,36 @@
-import json
 import os
+import json
 
-class ConfigLoader:
-    def __init__(self, default_config: dict, config_path: str = 'config.json'):
-        self.default_config = default_config
-        self.config_path = config_path
-        self.config = self.load_config()
+class ConfigError(Exception):
+    pass
 
-    def load_config(self) -> dict:
-        if os.path.exists(self.config_path):
-            with open(self.config_path, 'r') as file:
-                user_config = json.load(file)
-            return {**self.default_config, **user_config}
-        return self.default_config
+class Config:
+    def __init__(self, path):
+        self.path = path
+        self.configuration = {}
+        self.load_config()
+
+    def load_config(self):
+        if not os.path.exists(self.path):
+            raise ConfigError(f"Config file not found: {self.path}")
+        try:
+            with open(self.path, 'r') as file:
+                self.configuration = json.load(file)
+        except json.JSONDecodeError as e:
+            raise ConfigError(f"Failed to parse config file: {e}")
+        except Exception as e:
+            raise ConfigError(f"An unexpected error occurred: {e}")
 
     def get(self, key, default=None):
-        return self.config.get(key, default)
+        return self.configuration.get(key, default)
 
-# Sample default config
-DEFAULT_CONFIG = {
-    'resolution': '1920x1080',
-    'fullscreen': True,
-    'volume': 75,
-    'language': 'en'
-}
+    def set(self, key, value):
+        self.configuration[key] = value
+        self.save_config()
 
-if __name__ == '__main__':
-    config_loader = ConfigLoader(DEFAULT_CONFIG)
-    print(config_loader.get('resolution'))  # Output default resolution
+    def save_config(self):
+        try:
+            with open(self.path, 'w') as file:
+                json.dump(self.configuration, file, indent=4)
+        except Exception as e:
+            raise ConfigError(f"Failed to save config file: {e}")
