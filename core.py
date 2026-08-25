@@ -1,35 +1,95 @@
 import json
-from collections import defaultdict
+import os
+from copy import deepcopy
+from typing import Any, Dict, Optional
 
-class GameDataHandler:
-    def __init__(self):
-        self.data = defaultdict(list)
+DEFAULT_CONFIG: Dict[str, Any] = {
+    "game": {
+        "title": "Game Performance 70",
+        "version": "0.1",
+        "target_fps": 70,
+        "window_size": [1280, 720],
+        "fullscreen": False,
+    },
+    "rendering": {
+        "quality_level": "medium",
+        "enable_shadows": True,
+        "anisotropic_filtering": 8,
+        "draw_distance": 500,
+    },
+    "sound": {
+        "master_volume": 0.85,
+        "music_volume": 0.6,
+        "effects_volume": 1.0,
+        "spatial_audio": True,
+    },
+    "controls": {
+        "mouse_sensitivity": 1.0,
+        "invert_y_axis": False,
+        "key_bindings": {"forward": "w", "jump": "space"},
+    },
+}
 
-    def add_game_data(self, game_id, metrics):
-        self.data[game_id].append(metrics)
+class ConfigLoader:
+    def __init__(self, filepath: str = "settings.json"):
+        self.filepath = filepath
+        self.data: Dict[str, Any] = self._initialize_config()
 
-    def get_average_metrics(self, game_id):
-        if game_id not in self.data:
-            return None
-        total_metrics = defaultdict(int)
-        for metrics in self.data[game_id]:
-            for key, value in metrics.items():
-                total_metrics[key] += value
-        avg_metrics = {key: total / len(self.data[game_id]) for key, total in total_metrics.items()}
-        return avg_metrics
+    def _initialize_config(self) -> Dict[str, Any]:
+        config = deepcopy(DEFAULT_CONFIG)
+        if os.path.exists(self.filepath):
+            try:
+                with open(self.filepath, "r", encoding="utf-8") as file:
+                    loaded = json.load(file)
+                config = self._recursive_merge(config, loaded)
+            except Exception as err:
+                print(f"Config load issue: {err}. Defaults applied.")
+        return config
 
-    def export_to_json(self, filename):
-        with open(filename, 'w') as f:
-            json.dump(self.data, f, indent=4)
+    def _recursive_merge(self, target: Dict[str, Any], source: Dict[str, Any]) -> Dict[str, Any]:
+        for k, v in source.items():
+            if k in target and isinstance(target[k], dict) and isinstance(v, dict):
+                target[k] = self._recursive_merge(target[k], v)
+            else:
+                target[k] = v
+        return target
 
-    def import_from_json(self, filename):
-        with open(filename, 'r') as f:
-            self.data = json.load(f)
+    def get(self, dotted_path: str, fallback: Optional[Any] = None) -> Any:
+        parts = dotted_path.split(".")
+        current: Any = self.data
+        for part in parts:
+            if isinstance(current, dict) and part in current:
+                current = current[part]
+            else:
+                return fallback
+        return current
 
-# Usage example:
-# handler = GameDataHandler()
-# handler.add_game_data('game_1', {'fps': 60, 'ping': 20})
-# handler.add_game_data('game_1', {'fps': 55, 'ping': 25})
-# print(handler.get_average_metrics('game_1'))
-# handler.export_to_json('game_data.json')
-# handler.import_from_json('game_data.json')
+    def set(self, dotted_path: str, value: Any) -> None:
+        parts = dotted_path.split(".")
+        current = self.data
+        for part in parts[:-1]:
+            if part not in current or not isinstance(current[part], dict):
+                current[part] = {}
+            current = current[part]
+        current[parts[-1]] = value
+
+    def save(self) -> bool:
+        try:
+            with open(self.filepath, "w", encoding="utf-8") as file:
+                json.dump(self.data, file, indent=2)
+            return True
+        except Exception as err:
+            print(f"Save failed: {err}")
+            return False
+
+    def reload(self) -> None:
+        self.data = self._initialize_config()
+
+# Usage example
+if __name__ == "__main__":
+    loader = ConfigLoader("game_performance_config.json")
+    print("Target FPS:", loader.get("game.target_fps"))
+    print("Quality:", loader.get("rendering.quality_level"))
+    loader.set("rendering.draw_distance", 1000)
+    loader.save()
+    print("Updated draw distance:", loader.get("rendering.draw_distance"))
