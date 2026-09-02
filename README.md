@@ -1,36 +1,42 @@
-# Game Performance 70
+# game-performance-70
 
-Game Performance 70 is a Python-based tool designed to optimize gaming performance by analyzing frame rates, memory usage, and CPU/GPU load in real-time. This project aims to provide gamers and developers with essential insights to enhance their gaming experience and improve game performance.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+game-performance-70 is a Python toolkit that helps game developers profile and optimize their titles for high frame rates. It focuses on identifying inefficiencies in rendering pipelines and update cycles to deliver smooth gameplay experiences.
 
 ## Features
-- **Real-Time Monitoring**: Track and visualize key performance metrics including FPS, memory consumption, and CPU/GPU usage while playing games.
-- **Customizable Alerts**: Set thresholds for performance metrics and receive notifications when the game performance drops below specified levels.
-- **Comprehensive Reporting**: Generate detailed reports that summarize performance metrics over time, allowing for easy analysis and comparison.
-- **Cross-Platform Support**: Works seamlessly on Windows, macOS, and Linux operating systems.
+- Real-time FPS and frame time tracking with per-system breakdowns
+- Automatic detection of slow functions and excessive draw calls
+- Memory profiling for textures, audio, and other game assets
+- JSON and HTML report generation for post-session analysis
 
 ## Installation
 
-To get started with Game Performance 70, ensure you have Python 3.7 or higher installed. Clone the repository and install the required dependencies using the following commands:
+```bash
+pip install game-performance-70
+```
+
+From source:
 
 ```bash
 git clone https://github.com/Developer/game-performance-70.git
 cd game-performance-70
-pip install -r requirements.txt
+pip install -e .
 ```
 
-## Basic Usage Example
+## Basic Usage
 
-To run Game Performance 70, simply execute the following command:
+```python
+from game_performance_70 import Profiler
 
-```bash
-python performance_monitor.py
+profiler = Profiler(target_fps=70)
+profiler.start()
+
+# Game loop
+while running:
+    update()
+    render()
+
+profiler.stop()
+profiler.save_report("performance.json")
 ```
-
-This command will launch the performance monitoring tool, and the real-time metrics will be displayed in your console. You can customize settings in the `config.json` file to adjust the notifications and reports according to your preferences.
-
-## License
-
-![MIT License](https://img.shields.io/badge/license-MIT-green.svg)  
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
-
-By using Game Performance 70, you can enhance your gaming experience and ensure that every game runs optimally. Contribute or report any issues you encounter on the project GitHub page!
