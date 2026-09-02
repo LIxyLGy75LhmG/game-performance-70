@@ -1,76 +1,71 @@
-from enum import Enum
-from typing import Any, Dict, List
+from __future__ import annotations
+from typing import Any, Dict, Final, Tuple
 
-class PerformanceLevel(Enum):
-    POOR = 1
-    FAIR = 2
-    GOOD = 3
-    EXCELLENT = 4
+"""Performance constants for game-performance-70.
+Focus on gaming performance with type annotations and docstrings.
+Creative unusual dict approach for metadata storage.
+"""
 
-class GamingConstants:
-    FPS_LIMIT = 144
-    MIN_ACCEPTABLE_FPS = 30
-    MAX_RESOURCE_USAGE = 85
-    BASE_SCORE = 50
-    MAX_PING = 100
-    DATA_FIELDS = ["fps", "cpu_usage", "gpu_usage", "memory_usage", "ping"]
-    GAME_MODES = ["single", "multi", "coop"]
-    RESOLUTIONS = [(1920, 1080), (2560, 1440), (3840, 2160)]
+PERFORMANCE_CONSTANTS: Final[Dict[str, Dict[str, Any]]] = {
+    "fps": {
+        "max": 144,
+        "min": 30,
+        "target": 60,
+        "type": int,
+        "description": "Frames per second controls"
+    },
+    "resolution": {
+        "default": (1920, 1080),
+        "max": (3840, 2160),
+        "type": Tuple[int, int],
+        "description": "Screen resolutions"
+    },
+    "memory": {
+        "limit": 4096,
+        "type": int,
+        "description": "Memory limits in MB"
+    },
+    "latency": {
+        "max": 50,
+        "type": int,
+        "description": "Max latency ms"
+    },
+    "quality": {
+        "low": 1,
+        "high": 4,
+        "type": int,
+        "description": "Quality levels"
+    },
+}
 
-    @classmethod
-    def get_all_constants(cls) -> Dict[str, Any]:
-        return {
-            "fps_limit": cls.FPS_LIMIT,
-            "min_fps": cls.MIN_ACCEPTABLE_FPS,
-            "max_resource": cls.MAX_RESOURCE_USAGE,
-            "data_fields": cls.DATA_FIELDS,
-            "game_modes": cls.GAME_MODES,
-            "resolutions": cls.RESOLUTIONS
-        }
+def get_constant(category: str, key: str) -> Any:
+    """Get a constant value using category and key.
+    Type annotated and with full docstring.
+    Uses the creative constants dict.
+    """
+    if category not in PERFORMANCE_CONSTANTS:
+        raise KeyError(category)
+    data: Dict[str, Any] = PERFORMANCE_CONSTANTS[category]
+    if key not in data or key == "type" or key == "description":
+        raise KeyError(key)
+    return data[key]
 
-    @staticmethod
-    def calculate_performance_score(data: Dict[str, Any]) -> float:
-        fps = float(data.get("fps", 0))
-        cpu = float(data.get("cpu_usage", 0))
-        gpu = float(data.get("gpu_usage", 0))
-        memory = float(data.get("memory_usage", 0))
-        ping = float(data.get("ping", GamingConstants.MAX_PING))
-        fps_factor = min(1.0, fps / GamingConstants.FPS_LIMIT)
-        resource_avg = (cpu + gpu + memory) / 3
-        resource_factor = max(0.0, (GamingConstants.MAX_RESOURCE_USAGE - resource_avg) / GamingConstants.MAX_RESOURCE_USAGE)
-        ping_factor = max(0.0, (GamingConstants.MAX_PING - ping) / GamingConstants.MAX_PING)
-        score = (fps_factor * 50) + (resource_factor * 30) + (ping_factor * 20) + GamingConstants.BASE_SCORE
-        return min(100.0, max(0.0, round(score, 1)))
+def get_description(category: str, key: str) -> str:
+    """Return description for given constant.
+    Docstring explains the metadata usage.
+    """
+    if category not in PERFORMANCE_CONSTANTS:
+        return ""
+    data: Dict[str, Any] = PERFORMANCE_CONSTANTS[category]
+    return data.get("description", "")
 
-    @staticmethod
-    def handle_gaming_data(raw_entries: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        handled = []
-        for entry in raw_entries:
-            if not isinstance(entry, dict):
-                continue
-            score = GamingConstants.calculate_performance_score(entry)
-            level_value = min(4, max(1, int(score / 25) + 1))
-            level_name = PerformanceLevel(level_value).name
-            processed_entry = entry.copy()
-            processed_entry.update({
-                "performance_score": score,
-                "performance_level": level_name,
-                "is_high_performance": score >= 70
-            })
-            numeric_sum = sum(float(v) for v in entry.values() if isinstance(v, (int, float)))
-            processed_entry["data_checksum"] = int(numeric_sum) % 1000
-            handled.append(processed_entry)
-        return handled
-
-    @staticmethod
-    def get_high_performance_entries(entries: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        handled = GamingConstants.handle_gaming_data(entries)
-        return [e for e in handled if e.get("is_high_performance", False)]
-
-    @staticmethod
-    def compute_average_score(entries: List[Dict[str, Any]]) -> float:
-        if not entries:
-            return 0.0
-        handled = GamingConstants.handle_gaming_data(entries)
-        scores = [e["performance_score"] for e in handled]
-        return round(sum(scores) / len(scores), 1)
+def is_valid_value(category: str, key: str, value: Any) -> bool:
+    """Validate value against stored type.
+    Unusual creative type check at runtime.
+    """
+    if category not in PERFORMANCE_CONSTANTS:
+        return False
+    data = PERFORMANCE_CONSTANTS[category]
+    if key not in data or "type" not in data:
+        return False
+    return isinstance(value, data["type"])
