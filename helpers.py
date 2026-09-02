@@ -1,64 +1,47 @@
-import random
+import time
+from collections import defaultdict
 
-class GameError(Exception):
-    pass
+class SimpleGameEntity:
+    def __init__(self, x, y, vx=0.0, vy=0.0):
+        self.x = float(x)
+        self.y = float(y)
+        self.vx = float(vx)
+        self.vy = float(vy)
+    def update(self, dt):
+        self.x += self.vx * dt
+        self.y += self.vy * dt
 
-class Player:
-    def __init__(self, name):
-        self.name = name
-        self.health = 100
-        self.level = 1
+def spatial_bucket_cull(entities, cam_x, cam_y, view_radius, dt):
+    if not entities:
+        return 0
+    bucket_size = 200
+    buckets = defaultdict(list)
+    for entity in entities:
+        bx = int(entity.x // bucket_size)
+        by = int(entity.y // bucket_size)
+        buckets[(bx, by)].append(entity)
+    cam_bx = int(cam_x // bucket_size)
+    cam_by = int(cam_y // bucket_size)
+    bucket_range = int(view_radius // bucket_size) + 2
+    count = 0
+    for bx in range(cam_bx - bucket_range, cam_bx + bucket_range + 1):
+        for by in range(cam_by - bucket_range, cam_by + bucket_range + 1):
+            key = (bx, by)
+            if key in buckets:
+                for entity in buckets[key]:
+                    dx = entity.x - cam_x
+                    dy = entity.y - cam_y
+                    if dx * dx + dy * dy <= view_radius * view_radius:
+                        entity.update(dt)
+                        count += 1
+    return count
 
-    def take_damage(self, amount):
-        if amount < 0:
-            raise GameError('Damage amount must be positive')
-        self.health -= amount
-        if self.health < 0:
-            self.health = 0
-        return self.health
+def generate_entities(n):
+    return [SimpleGameEntity((i % 50) * 20, (i // 50) * 20, 2.0, 1.0) for i in range(n)]
 
-    def heal(self, amount):
-        if amount < 0:
-            raise GameError('Healing amount must be positive')
-        self.health += amount
-        if self.health > 100:
-            self.health = 100
-        return self.health
-
-class Game:
-    def __init__(self):
-        self.players = []
-
-    def add_player(self, name):
-        if not name:
-            raise GameError('Player name cannot be empty')
-        self.players.append(Player(name))
-
-    def deal_damage(self, player_name, damage):
-        player = self.find_player(player_name)
-        if player:
-            return player.take_damage(damage)
-        return None
-
-    def find_player(self, name):
-        for player in self.players:
-            if player.name == name:
-                return player
-        raise GameError('Player not found')
-
-    def heal_player(self, player_name, heal_amount):
-        player = self.find_player(player_name)
-        if player:
-            return player.heal(heal_amount)
-        return None
-
-
-# Example usage
-if __name__ == '__main__':
-    game = Game()
-    game.add_player('Player1')
-    try:
-        game.deal_damage('Player1', 20)  # Reduces health
-        game.heal_player('Player1', 10)  # Increases health
-    except GameError as e:
-        print(f'Error: {e}')
+def run_performance_test():
+    entities = generate_entities(500)
+    start = time.perf_counter()
+    for _ in range(100):
+        spatial_bucket_cull(entities, 250, 250, 1000, 0.016)
+    return time.perf_counter() - start
