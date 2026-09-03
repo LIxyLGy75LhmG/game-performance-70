@@ -1,71 +1,40 @@
-from __future__ import annotations
-from typing import Any, Dict, Final, Tuple
+import enum
+import logging
+from typing import Final, Dict
 
-"""Performance constants for game-performance-70.
-Focus on gaming performance with type annotations and docstrings.
-Creative unusual dict approach for metadata storage.
-"""
+class PerformanceLevel(enum.IntEnum):
+    POTATO = 0
+    LOW = 1
+    MEDIUM = 2
+    ULTRA = 3
 
-PERFORMANCE_CONSTANTS: Final[Dict[str, Dict[str, Any]]] = {
-    "fps": {
-        "max": 144,
-        "min": 30,
-        "target": 60,
-        "type": int,
-        "description": "Frames per second controls"
-    },
-    "resolution": {
-        "default": (1920, 1080),
-        "max": (3840, 2160),
-        "type": Tuple[int, int],
-        "description": "Screen resolutions"
-    },
-    "memory": {
-        "limit": 4096,
-        "type": int,
-        "description": "Memory limits in MB"
-    },
-    "latency": {
-        "max": 50,
-        "type": int,
-        "description": "Max latency ms"
-    },
-    "quality": {
-        "low": 1,
-        "high": 4,
-        "type": int,
-        "description": "Quality levels"
-    },
+def get_resource_budget(level: int) -> int:
+    try:
+        return {0: 1024, 1: 4096, 2: 8192, 3: 16384}[level]
+    except KeyError:
+        logging.warning(f"Invalid level {level} detected, defaulting to POTATO")
+        return 1024
+
+MAX_FRAME_TIME_MS: Final[float] = 16.67
+MIN_VRAM_MB: Final[int] = 512
+
+GLOBAL_CONFIG: Dict[str, any] = {
+    "buffer_size": 64,
+    "engine_mode": "dynamic",
+    "fallback_enabled": True
 }
 
-def get_constant(category: str, key: str) -> Any:
-    """Get a constant value using category and key.
-    Type annotated and with full docstring.
-    Uses the creative constants dict.
-    """
-    if category not in PERFORMANCE_CONSTANTS:
-        raise KeyError(category)
-    data: Dict[str, Any] = PERFORMANCE_CONSTANTS[category]
-    if key not in data or key == "type" or key == "description":
-        raise KeyError(key)
-    return data[key]
-
-def get_description(category: str, key: str) -> str:
-    """Return description for given constant.
-    Docstring explains the metadata usage.
-    """
-    if category not in PERFORMANCE_CONSTANTS:
-        return ""
-    data: Dict[str, Any] = PERFORMANCE_CONSTANTS[category]
-    return data.get("description", "")
-
-def is_valid_value(category: str, key: str, value: Any) -> bool:
-    """Validate value against stored type.
-    Unusual creative type check at runtime.
-    """
-    if category not in PERFORMANCE_CONSTANTS:
+def validate_config_safety(value: float) -> bool:
+    try:
+        assert isinstance(value, (int, float))
+        assert value > 0
+        return True
+    except AssertionError:
         return False
-    data = PERFORMANCE_CONSTANTS[category]
-    if key not in data or "type" not in data:
-        return False
-    return isinstance(value, data["type"])
+
+# Fallback container for edge case recovery
+CRITICAL_FALLBACK = {
+    "render_path": "software",
+    "threading": "single",
+    "physics": "simplified"
+}
