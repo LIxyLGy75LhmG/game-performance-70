@@ -1,27 +1,35 @@
-class GameError(Exception):
-    """Base class for game-related exceptions."""
-    pass
+class GamePerformanceError(Exception):
+    """Base exception for all game performance metrics issues."""
 
-class PlayerNotFoundError(GameError):
-    """Exception raised when a player is not found."""
-    def __init__(self, player_id):
-        super().__init__(f'Player with ID {player_id} not found.')
-        self.player_id = player_id
+class TelemetryDataError(GamePerformanceError):
+    """Raised when incoming telemetry data is malformed or missing."""
 
-class GameOverError(GameError):
-    """Exception raised when game is over."""
-    def __init__(self, reason):
-        super().__init__(f'Game is over: {reason}')
-        self.reason = reason
+class LatencySpikeDetected(GamePerformanceError):
+    """Raised when frame latency exceeds defined threshold."""
 
-class InvalidMoveError(GameError):
-    """Exception raised for invalid moves in the game."""
-    def __init__(self, move):
-        super().__init__(f'Invalid move: {move}')
-        self.move = move
+class AssetLoadTimeout(GamePerformanceError):
+    """Raised when critical game assets fail to load in time."""
 
-class ResourceNotFoundError(GameError):
-    """Exception raised when requested resource is not found."""
-    def __init__(self, resource_id):
-        super().__init__(f'Resource {resource_id} not found.')
-        self.resource_id = resource_id
+class PerformanceConstraintViolation(GamePerformanceError):
+    """Custom exception for hardware-specific threshold breaches."""
+
+def raise_if_lagging(latency_ms: float, threshold: float = 16.6) -> None:
+    if latency_ms > threshold:
+        raise LatencySpikeDetected(f"Frame latency {latency_ms}ms exceeded {threshold}ms threshold")
+
+def validate_telemetry_payload(data: dict) -> None:
+    required = {'frame_time', 'fps', 'gpu_temp'}
+    if not all(key in data for key in required):
+        raise TelemetryDataError(f"Missing required keys: {required - data.keys()}")
+
+class PerformanceGuard:
+    def __init__(self, limit: float):
+        self.limit = limit
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if exc_type is not None:
+            return False
+        return True
