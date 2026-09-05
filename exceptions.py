@@ -1,35 +1,30 @@
 class GamePerformanceError(Exception):
-    """Base exception for all game performance metrics issues."""
+    """Base exception for game-performance-70 package."""
 
-class TelemetryDataError(GamePerformanceError):
-    """Raised when incoming telemetry data is malformed or missing."""
+class DataStreamLatencyError(GamePerformanceError):
+    """Raised when telemetry data arrival exceeds buffer limits."""
 
-class LatencySpikeDetected(GamePerformanceError):
-    """Raised when frame latency exceeds defined threshold."""
+class FrameDropThresholdExceeded(GamePerformanceError):
+    """Custom alert for hardware performance bottlenecks."""
 
-class AssetLoadTimeout(GamePerformanceError):
-    """Raised when critical game assets fail to load in time."""
+def raise_if_bottleneck(fps, min_target=60):
+    if fps < min_target:
+        raise FrameDropThresholdExceeded(f"Performance drop detected: {fps} FPS")
 
-class PerformanceConstraintViolation(GamePerformanceError):
-    """Custom exception for hardware-specific threshold breaches."""
+def safe_data_process(data_stream):
+    try:
+        return [float(x) for x in data_stream]
+    except (ValueError, TypeError) as e:
+        raise DataStreamLatencyError(f"Corrupt telemetry packet: {e}")
 
-def raise_if_lagging(latency_ms: float, threshold: float = 16.6) -> None:
-    if latency_ms > threshold:
-        raise LatencySpikeDetected(f"Frame latency {latency_ms}ms exceeded {threshold}ms threshold")
-
-def validate_telemetry_payload(data: dict) -> None:
-    required = {'frame_time', 'fps', 'gpu_temp'}
-    if not all(key in data for key in required):
-        raise TelemetryDataError(f"Missing required keys: {required - data.keys()}")
-
-class PerformanceGuard:
-    def __init__(self, limit: float):
-        self.limit = limit
-
+class PerformanceSanitizer:
+    def __init__(self, threshold):
+        self.threshold = threshold
+    
     def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        if exc_type is not None:
-            return False
-        return True
+        if exc_type is FrameDropThresholdExceeded:
+            print(f"Warning: Performance intervention triggered: {exc_val}")
+            return True
