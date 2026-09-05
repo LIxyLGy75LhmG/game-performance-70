@@ -1,62 +1,39 @@
-import json
-import os
+import logging
+import random
 
-class ConfigProcessor:
-    DEFAULTS = {
-        "game": {
-            "performance": {
-                "fps_limit": 60,
-                "resolution_width": 1920,
-                "resolution_height": 1080,
-                "enable_vsync": True,
-                "graphics_quality": "high"
-            },
-            "audio": {
-                "master_volume": 0.75,
-                "sound_effects": True
-            }
-        }
-    }
+class PerformanceError(Exception):
+    pass
 
-    def __init__(self, path="config.json"):
-        self.path = path
-        self.data = {}
-        self.load()
+class FrameProcessor:
+    def __init__(self, threshold=60):
+        self.threshold = threshold
+        self.logger = logging.getLogger('game-perf')
 
-    def load(self):
-        if os.path.exists(self.path):
-            with open(self.path) as f:
-                user_data = json.load(f)
-        else:
-            user_data = {}
-        self.data = self._merge_defaults(self.DEFAULTS, user_data)
+    def sanitize_fps(self, fps_value):
+        try:
+            if not isinstance(fps_value, (int, float)):
+                raise ValueError(f'Invalid data type: {type(fps_value)}')
+            
+            if fps_value < 0:
+                return 0
+            if fps_value > 500:
+                raise PerformanceError('Physics engine unstable at ultra-high framerates')
+                
+            return round(fps_value, 2)
+        except (ValueError, PerformanceError) as e:
+            self.logger.warning(f'Frame spike anomaly: {e}')
+            return self.threshold
 
-    def _merge_defaults(self, defaults, user):
-        result = {}
-        stack = [(defaults, user, result)]
-        while stack:
-            def_dict, usr_dict, res_dict = stack.pop()
-            all_keys = set(def_dict.keys()) | set(usr_dict.keys())
-            for key in all_keys:
-                if key in def_dict and key in usr_dict and isinstance(def_dict[key], dict) and isinstance(usr_dict[key], dict):
-                    res_dict[key] = {}
-                    stack.append((def_dict[key], usr_dict[key], res_dict[key]))
-                elif key in usr_dict:
-                    res_dict[key] = usr_dict[key]
-                else:
-                    res_dict[key] = def_dict[key]
-        return result
+    def process_batch(self, frame_data):
+        results = []
+        for data in frame_data:
+            clean_val = self.sanitize_fps(data)
+            results.append(clean_val)
+        return results
 
-    def get(self, key_path):
-        keys = key_path.split(".")
-        current = self.data
-        for key in keys:
-            if isinstance(current, dict) and key in current:
-                current = current[key]
-            else:
-                return None
-        return current
-
-    def save(self):
-        with open(self.path, "w") as f:
-            json.dump(self.data, f, indent=4)
+def run_optimization_cycle(data):
+    proc = FrameProcessor()
+    try:
+        return proc.process_batch(data)
+    except Exception:
+        return [60] * len(data)
