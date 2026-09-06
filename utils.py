@@ -1,40 +1,30 @@
-import gc
 import time
-import psutil
+import functools
+import logging
 from typing import Callable, Any
 
-class MemorySanitizer:
-    """aggressive memory cleanup for high-frame rate gaming"""
-    def __init__(self, threshold_mb: int = 500):
-        self.threshold = threshold_mb
+logger = logging.getLogger('game-performance-70')
 
-    def run_gc_sweep(self) -> None:
-        collected = gc.collect()
-        process = psutil.Process()
-        mem_info = process.memory_info().rss / (1024 * 1024)
-        if mem_info > self.threshold:
-            print(f"[System] High memory usage detected: {mem_info:.2f}MB. Scrubbing objects...")
-
-    @staticmethod
-    def performance_gate(func: Callable) -> Callable:
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
-            start = time.perf_counter()
-            result = func(*args, **kwargs)
-            duration = (time.perf_counter() - start) * 1000
-            if duration > 16.6:
-                print(f"[Warning] {func.__name__} took {duration:.2f}ms (frametime spike)")
-            return result
+def retry_network_op(retries: int = 3, delay: float = 1.0, backoff: float = 2.0):
+    """Adaptive exponential backoff for jittery network calls."""
+    def decorator(func: Callable):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs) -> Any:
+            current_delay = delay
+            for attempt in range(retries):
+                try:
+                    return func(*args, **kwargs)
+                except (ConnectionError, TimeoutError) as e:
+                    if attempt == retries - 1:
+                        logger.error(f'Critical failure after {retries} attempts: {e}')
+                        raise
+                    logger.warning(f'Attempt {attempt + 1} failed, retrying in {current_delay}s...')
+                    time.sleep(current_delay)
+                    current_delay *= backoff
+            return None
         return wrapper
+    return decorator
 
-class ResourceRegistry:
-    """singleton registry for engine assets"""
-    _registry: dict[str, Any] = {}
-
-    @classmethod
-    def register(cls, key: str, resource: Any) -> None:
-        cls._registry[key] = resource
-
-    @classmethod
-    def flush(cls) -> None:
-        cls._registry.clear()
-        gc.collect()
+def pulse_connection(check_func: Callable):
+    """Decorator that wraps networking in a resilience layer."""
+    return retry_network_op(retries=5, delay=0.5)(check_func)
