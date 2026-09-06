@@ -1,30 +1,40 @@
+import gc
 import time
-import random
-import requests
+import psutil
+from typing import Callable, Any
 
-def retry_network_operation(operation, retries=3, delay=2):
-    for attempt in range(retries):
-        try:
-            response = operation()
-            if response.ok:
-                return response.json()
-            else:
-                print(f"Attempt {attempt + 1}: Received non-200 response: {response.status_code}")
-        except requests.exceptions.RequestException as e:
-            print(f"Attempt {attempt + 1}: Network error: {e}")
-        time.sleep(delay)
-    raise Exception(f"Failed after {retries} attempts.")
+class MemorySanitizer:
+    """aggressive memory cleanup for high-frame rate gaming"""
+    def __init__(self, threshold_mb: int = 500):
+        self.threshold = threshold_mb
 
-# Example operation function
+    def run_gc_sweep(self) -> None:
+        collected = gc.collect()
+        process = psutil.Process()
+        mem_info = process.memory_info().rss / (1024 * 1024)
+        if mem_info > self.threshold:
+            print(f"[System] High memory usage detected: {mem_info:.2f}MB. Scrubbing objects...")
 
-def fetch_data():
-    url = "https://api.example.com/data"
-    return requests.get(url)
+    @staticmethod
+    def performance_gate(func: Callable) -> Callable:
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            start = time.perf_counter()
+            result = func(*args, **kwargs)
+            duration = (time.perf_counter() - start) * 1000
+            if duration > 16.6:
+                print(f"[Warning] {func.__name__} took {duration:.2f}ms (frametime spike)")
+            return result
+        return wrapper
 
-# Usage
-if __name__ == '__main__':
-    try:
-        data = retry_network_operation(fetch_data)
-        print(data)
-    except Exception as e:
-        print(e)
+class ResourceRegistry:
+    """singleton registry for engine assets"""
+    _registry: dict[str, Any] = {}
+
+    @classmethod
+    def register(cls, key: str, resource: Any) -> None:
+        cls._registry[key] = resource
+
+    @classmethod
+    def flush(cls) -> None:
+        cls._registry.clear()
+        gc.collect()
