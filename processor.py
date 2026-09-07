@@ -1,39 +1,36 @@
-import logging
-import random
+import json
+import os
+from typing import Any, Dict
 
-class PerformanceError(Exception):
-    pass
+class ConfigProcessor:
+    def __init__(self, path: str = "config.json", defaults: Dict[str, Any] = None):
+        self.path = path
+        self.defaults = defaults or {}
+        self.settings = self._load()
 
-class FrameProcessor:
-    def __init__(self, threshold=60):
-        self.threshold = threshold
-        self.logger = logging.getLogger('game-perf')
-
-    def sanitize_fps(self, fps_value):
+    def _load(self) -> Dict[str, Any]:
+        if not os.path.exists(self.path):
+            self._save(self.defaults)
+            return self.defaults
         try:
-            if not isinstance(fps_value, (int, float)):
-                raise ValueError(f'Invalid data type: {type(fps_value)}')
-            
-            if fps_value < 0:
-                return 0
-            if fps_value > 500:
-                raise PerformanceError('Physics engine unstable at ultra-high framerates')
-                
-            return round(fps_value, 2)
-        except (ValueError, PerformanceError) as e:
-            self.logger.warning(f'Frame spike anomaly: {e}')
-            return self.threshold
+            with open(self.path, "r") as f:
+                loaded = json.load(f)
+                return {**self.defaults, **loaded}
+        except (json.JSONDecodeError, IOError):
+            return self.defaults
 
-    def process_batch(self, frame_data):
-        results = []
-        for data in frame_data:
-            clean_val = self.sanitize_fps(data)
-            results.append(clean_val)
-        return results
+    def _save(self, data: Dict[str, Any]) -> None:
+        with open(self.path, "w") as f:
+            json.dump(data, f, indent=4)
 
-def run_optimization_cycle(data):
-    proc = FrameProcessor()
-    try:
-        return proc.process_batch(data)
-    except Exception:
-        return [60] * len(data)
+    def get(self, key: str, fallback: Any = None) -> Any:
+        return self.settings.get(key, fallback)
+
+    def patch(self, key: str, value: Any) -> None:
+        self.settings[key] = value
+        self._save(self.settings)
+
+if __name__ == "__main__":
+    # Example usage for performance tunings
+    engine_cfg = ConfigProcessor("engine.json", {"fps_cap": 144, "vsync": False})
+    print(f"Current FPS limit: {engine_cfg.get('fps_cap')}")
