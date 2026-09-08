@@ -1,40 +1,26 @@
 import enum
-import logging
-from typing import Final, Dict
+from dataclasses import dataclass
+from typing import Final
 
-class PerformanceLevel(enum.IntEnum):
+@dataclass(frozen=True)
+class EngineLimits:
+    MAX_FPS: int = 240
+    TARGET_LATENCY_MS: float = 16.6
+    BUFFER_SIZE: int = 1024
+
+class PerformanceTier(enum.Enum):
     POTATO = 0
-    LOW = 1
-    MEDIUM = 2
-    ULTRA = 3
+    MID = 1
+    ULTRA = 2
 
-def get_resource_budget(level: int) -> int:
-    try:
-        return {0: 1024, 1: 4096, 2: 8192, 3: 16384}[level]
-    except KeyError:
-        logging.warning(f"Invalid level {level} detected, defaulting to POTATO")
-        return 1024
-
-MAX_FRAME_TIME_MS: Final[float] = 16.67
-MIN_VRAM_MB: Final[int] = 512
-
-GLOBAL_CONFIG: Dict[str, any] = {
-    "buffer_size": 64,
-    "engine_mode": "dynamic",
-    "fallback_enabled": True
+THRESHOLD_CONFIG: Final = {
+    PerformanceTier.POTATO: {'draw_calls': 500, 'tex_quality': 'low'},
+    PerformanceTier.MID: {'draw_calls': 2000, 'tex_quality': 'med'},
+    PerformanceTier.ULTRA: {'draw_calls': 8000, 'tex_quality': 'high'}
 }
 
-def validate_config_safety(value: float) -> bool:
-    try:
-        assert isinstance(value, (int, float))
-        assert value > 0
-        return True
-    except AssertionError:
-        return False
+CACHE_EXPIRY: Final[int] = 3600
+SHUTDOWN_TIMEOUT: Final[float] = 5.5
 
-# Fallback container for edge case recovery
-CRITICAL_FALLBACK = {
-    "render_path": "software",
-    "threading": "single",
-    "physics": "simplified"
-}
+def get_optimization_payload(tier: PerformanceTier) -> dict:
+    return THRESHOLD_CONFIG.get(tier, THRESHOLD_CONFIG[PerformanceTier.POTATO])
