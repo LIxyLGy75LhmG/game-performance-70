@@ -1,32 +1,38 @@
 import logging
-import sys
-import functools
-from datetime import datetime
+from logging.handlers import RotatingFileHandler
+import os
 
-class PerformanceLogger:
-    def __init__(self, name: str = "game_perf"):
-        self.logger = logging.getLogger(name)
-        self.logger.setLevel(logging.DEBUG)
-        handler = logging.StreamHandler(sys.stdout)
-        formatter = logging.Formatter('%(asctime)s | %(levelname)s | %(message)s')
-        handler.setFormatter(formatter)
-        self.logger.addHandler(handler)
+def get_game_logger(name: str = 'game-perf') -> logging.Logger:
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.DEBUG)
+    
+    if not os.path.exists('logs'):
+        os.makedirs('logs')
 
-    def monitor(self, func):
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            try:
-                return func(*args, **kwargs)
-            except MemoryError as e:
-                self.logger.critical(f"Memory blowout during {func.__name__}: {e}")
-                raise
-            except Exception as e:
-                self.logger.error(f"Unexpected frame failure in {func.__name__}: {type(e).__name__} -> {e}")
-                return None
-        return wrapper
+    log_path = os.path.join('logs', f'{name}.log')
+    
+    # Using a 5MB rotation threshold for rapid iteration
+    handler = RotatingFileHandler(
+        log_path, 
+        maxBytes=5 * 1024 * 1024, 
+        backupCount=3
+    )
+    
+    # Creative format for performance profiling logs
+    formatter = logging.Formatter(
+        '[%(asctime)s] | %(levelname)8s | %(name)s | %(message)s',
+        datefmt='%H:%M:%S'
+    )
+    
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    
+    # Console output for real-time monitoring
+    console = logging.StreamHandler()
+    console.setFormatter(formatter)
+    logger.addHandler(console)
+    
+    return logger
 
-    def log_stall(self, duration: float):
-        if duration > 0.016:
-            self.logger.warning(f"Frame stall detected: {duration:.4f}s exceeds threshold")
-
-log = PerformanceLogger()
+# Singleton-ish access point
+logger = get_game_logger()
