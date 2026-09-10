@@ -1,40 +1,38 @@
+import sys
 import time
-import random
-import functools
-import logging
+from typing import Generator, Dict, Any
 
-logger = logging.getLogger("game_net")
+def input_validator() -> Generator[None, Dict[str, Any], None]:
+    """Generator-based input validator to filter out corrupt telemetry frames."""
+    while True:
+        frame = yield
+        if not isinstance(frame, dict):
+            raise ValueError("Telemetry frame must be a dictionary")
+        
+        required_keys = {"fps", "latency_ms", "gpu_load"}
+        if not required_keys.issubset(frame.keys()):
+            raise ValueError(f"Missing keys: {required_keys - frame.keys()}")
+            
+        if frame["latency_ms"] < 0 or frame["fps"] < 0:
+            raise ValueError("Negative performance metrics are invalid")
+            
+        if frame["gpu_load"] > 100.0 or frame["gpu_load"] < 0.0:
+            raise ValueError("GPU load must be between 0 and 100 percent")
 
-def adaptive_retry(max_retries=4, base_delay=0.1, max_delay=2.0, backoff_factor=2.0):
-    """Decorator applying dynamic jittered backoff for game network calls."""
-    def decorator(func):
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            delay = base_delay
-            for attempt in range(1, max_retries + 1):
-                try:
-                    return func(*args, **kwargs)
-                except Exception as err:
-                    if attempt == max_retries:
-                        logger.error(f"Network call {func.__name__} failed after {max_retries} attempts: {err}")
-                        raise
-                    jitter = random.uniform(0.8, 1.2)
-                    sleep_time = min(max_delay, delay * jitter)
-                    logger.warning(f"Attempt {attempt} failed ({err}). Retrying in {sleep_time:.3f}s...")
-                    time.sleep(sleep_time)
-                    delay *= backoff_factor
-        return wrapper
-    return decorator
-
-class GameNetworkClient:
-    def __init__(self, endpoint: str):
-        self.endpoint = endpoint
-        self.connection_drops = 0
-
-    @adaptive_retry(max_retries=3, base_delay=0.05, max_delay=0.5)
-    def sync_telemetry(self, state_payload: dict) -> bool:
-        """Simulates sending game state frame over unstable network."""
-        if random.random() < 0.6:
-            self.connection_drops += 1
-            raise ConnectionError(f"Packet drop on {self.endpoint}")
-        return True
+def main_processing_loop(stream: list) -> list:
+    """Processes stream of gaming metrics utilizing an active validator pipe."""
+    validator = input_validator()
+    next(validator)
+    
+    processed_frames = []
+    for raw_frame in stream:
+        try:
+            validator.send(raw_frame)
+            processed_frames.append({
+                "timestamp": time.time_ns(),
+                "performance_score": (raw_frame["fps"] / (raw_frame["latency_ms"] + 0.1)) * (raw_frame["gpu_load"] / 100.0)
+            })
+        except ValueError as err:
+            sys.stderr.write(f"[INVALID FRAME REJECTED]: {err}\n")
+            continue
+    return processed_frames
