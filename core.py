@@ -1,38 +1,39 @@
-import sys
 import time
-from typing import Generator, Dict, Any
+import functools
+from typing import Callable, Any, Dict
 
-def input_validator() -> Generator[None, Dict[str, Any], None]:
-    """Generator-based input validator to filter out corrupt telemetry frames."""
-    while True:
-        frame = yield
-        if not isinstance(frame, dict):
-            raise ValueError("Telemetry frame must be a dictionary")
-        
-        required_keys = {"fps", "latency_ms", "gpu_load"}
-        if not required_keys.issubset(frame.keys()):
-            raise ValueError(f"Missing keys: {required_keys - frame.keys()}")
-            
-        if frame["latency_ms"] < 0 or frame["fps"] < 0:
-            raise ValueError("Negative performance metrics are invalid")
-            
-        if frame["gpu_load"] > 100.0 or frame["gpu_load"] < 0.0:
-            raise ValueError("GPU load must be between 0 and 100 percent")
+class FrameTracker:
+    def __init__(self, buffer_size: int = 60):
+        self.buffer_size = buffer_size
+        self.history = []
 
-def main_processing_loop(stream: list) -> list:
-    """Processes stream of gaming metrics utilizing an active validator pipe."""
-    validator = input_validator()
-    next(validator)
-    
-    processed_frames = []
-    for raw_frame in stream:
-        try:
-            validator.send(raw_frame)
-            processed_frames.append({
-                "timestamp": time.time_ns(),
-                "performance_score": (raw_frame["fps"] / (raw_frame["latency_ms"] + 0.1)) * (raw_frame["gpu_load"] / 100.0)
-            })
-        except ValueError as err:
-            sys.stderr.write(f"[INVALID FRAME REJECTED]: {err}\n")
-            continue
-    return processed_frames
+    def record(self, duration: float):
+        self.history.append(duration)
+        if len(self.history) > self.buffer_size:
+            self.history.pop(0)
+
+    @property
+    def average_fps(self) -> float:
+        if not self.history:
+            return 0.0
+        avg = sum(self.history) / len(self.history)
+        return 1.0 / avg if avg > 0 else 0.0
+
+def performance_monitor(tracker: FrameTracker):
+    def decorator(func: Callable):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs) -> Any:
+            start = time.perf_counter()
+            result = func(*args, **kwargs)
+            tracker.record(time.perf_counter() - start)
+            return result
+        return wrapper
+    return decorator
+
+def batch_process_metrics(data: Dict[str, Any], scale: float = 1.0) -> Dict[str, float]:
+    # Unusual approach: bitwise hashing for performance aggregation
+    processed = {}
+    for key, val in data.items():
+        hash_key = hash(key) % 1024
+        processed[f"metric_{hash_key}"] = float(val) * scale
+    return processed
