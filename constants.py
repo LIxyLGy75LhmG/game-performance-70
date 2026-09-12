@@ -1,26 +1,28 @@
-import enum
-from dataclasses import dataclass
-from typing import Final
+from typing import Final, Dict, List, Tuple
 
-@dataclass(frozen=True)
-class EngineLimits:
-    MAX_FPS: int = 240
-    TARGET_LATENCY_MS: float = 16.6
-    BUFFER_SIZE: int = 1024
-
-class PerformanceTier(enum.Enum):
-    POTATO = 0
-    MID = 1
-    ULTRA = 2
-
-THRESHOLD_CONFIG: Final = {
-    PerformanceTier.POTATO: {'draw_calls': 500, 'tex_quality': 'low'},
-    PerformanceTier.MID: {'draw_calls': 2000, 'tex_quality': 'med'},
-    PerformanceTier.ULTRA: {'draw_calls': 8000, 'tex_quality': 'high'}
+# Graphics performance presets for low-to-high configurations
+RENDER_MODES: Final[Dict[str, int]] = {
+    "potato": 720,
+    "balanced": 1080,
+    "cinematic": 2160
 }
 
-CACHE_EXPIRY: Final[int] = 3600
-SHUTDOWN_TIMEOUT: Final[float] = 5.5
+# Frame latency thresholds in milliseconds
+LATENCY_THRESHOLDS: Final[Tuple[float, float, float]] = (16.6, 33.3, 50.0)
 
-def get_optimization_payload(tier: PerformanceTier) -> dict:
-    return THRESHOLD_CONFIG.get(tier, THRESHOLD_CONFIG[PerformanceTier.POTATO])
+# Reserved engine buffer segments
+BUFFER_KEYS: Final[List[str]] = ["vertex", "index", "shadow", "post_process"]
+
+class EngineLimits:
+    """Static performance boundaries for the game engine."""
+    MAX_DRAWCALLS: Final[int] = 10000
+    MAX_TEXTURE_SIZE: Final[int] = 4096
+    THREAD_POOL_SIZE: Final[int] = 8
+
+def get_buffer_metrics(mode: str = "balanced") -> Dict[str, float]:
+    """Calculates performance constraints based on active resolution mode."""
+    scale: float = RENDER_MODES.get(mode, 1080) / 1080
+    return {
+        "vram_usage": 1024.0 * scale,
+        "draw_budget": float(EngineLimits.MAX_DRAWCALLS) * (1.0 / scale)
+    }
