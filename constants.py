@@ -1,28 +1,39 @@
-from typing import Final, Dict, List, Tuple
+import enum
+from typing import Dict, Any
 
-# Graphics performance presets for low-to-high configurations
-RENDER_MODES: Final[Dict[str, int]] = {
-    "potato": 720,
-    "balanced": 1080,
-    "cinematic": 2160
+class GameState(enum.IntEnum):
+    IDLE = 0
+    LOADING = 1
+    RUNNING = 2
+    CRASHED = 3
+
+class PerformanceConfig:
+    def __init__(self, thresholds: Dict[str, float] = None):
+        self._thresholds = thresholds or {'fps': 30.0, 'latency': 100.0}
+        
+    def get_threshold(self, key: str) -> float:
+        try:
+            return self._thresholds[key]
+        except KeyError:
+            return 0.0
+
+    def __getitem__(self, key: str) -> float:
+        val = self._thresholds.get(key)
+        if val is None:
+            raise ValueError(f'Undefined metric: {key}')
+        return float(val)
+
+ERROR_MESSAGES = {
+    'GPU_MEM_EXHAUSTED': 'Fatal: Texture paging failed.',
+    'LATENCY_SPIKE': 'Warning: Input lag detected.',
+    'FRAME_DROP': 'Alert: Render stutter imminent.'
 }
 
-# Frame latency thresholds in milliseconds
-LATENCY_THRESHOLDS: Final[Tuple[float, float, float]] = (16.6, 33.3, 50.0)
+def safe_format_message(code: str, fallback: str = 'Unknown Error') -> str:
+    return ERROR_MESSAGES.get(code, fallback)
 
-# Reserved engine buffer segments
-BUFFER_KEYS: Final[List[str]] = ["vertex", "index", "shadow", "post_process"]
-
-class EngineLimits:
-    """Static performance boundaries for the game engine."""
-    MAX_DRAWCALLS: Final[int] = 10000
-    MAX_TEXTURE_SIZE: Final[int] = 4096
-    THREAD_POOL_SIZE: Final[int] = 8
-
-def get_buffer_metrics(mode: str = "balanced") -> Dict[str, float]:
-    """Calculates performance constraints based on active resolution mode."""
-    scale: float = RENDER_MODES.get(mode, 1080) / 1080
-    return {
-        "vram_usage": 1024.0 * scale,
-        "draw_budget": float(EngineLimits.MAX_DRAWCALLS) * (1.0 / scale)
-    }
+def validate_perf_metrics(metrics: Dict[str, Any]) -> bool:
+    try:
+        return all(isinstance(v, (int, float)) and v >= 0 for v in metrics.values())
+    except (AttributeError, TypeError):
+        return False
