@@ -1,25 +1,39 @@
 import os
-from dataclasses import dataclass
-from typing import Final
+import logging
 
-@dataclass(frozen=True)
-class EngineConfig:
-    render_fps: int = 144
-    texture_cache_mb: int = 2048
-    debug_mode: bool = False
+class ConfigError(Exception):
+    pass
 
-def fetch_environment_settings() -> EngineConfig:
-    """Factory for engine configuration with fallback logic."""
-    return EngineConfig(
-        render_fps=int(os.getenv("FPS_LIMIT", 60)),
-        texture_cache_mb=int(os.getenv("CACHE_SIZE", 1024)),
-        debug_mode=os.getenv("DEBUG", "0") == "1"
-    )
+def get_performance_limit(key: str, default: int = 60) -> int:
+    try:
+        value = os.getenv(key)
+        if value is None:
+            return default
+        parsed = int(value)
+        if parsed <= 0:
+            raise ValueError('non-positive limit')
+        return parsed
+    except (ValueError, TypeError) as e:
+        logging.error(f'Invalid config for {key}: {e}. Falling back to {default}')
+        return default
 
-# Global singleton pattern for configuration access
-SETTINGS: Final = fetch_environment_settings()
+def validate_game_settings(settings: dict):
+    required = ['fps_cap', 'render_scale']
+    missing = [k for k in required if k not in settings]
+    if missing:
+        raise ConfigError(f'missing critical keys: {missing}')
+    
+    if not (0.1 <= settings.get('render_scale', 1.0) <= 2.0):
+        settings['render_scale'] = 1.0
+        logging.warning('render_scale out of bounds, reset to 1.0')
 
-if __name__ == "__main__":
-    # Validation check for performance constraints
-    if SETTINGS.texture_cache_mb < 512:
-        raise MemoryError("Texture cache threshold too low for engine stability.")
+class GameConfig:
+    def __init__(self, raw_data: dict):
+        try:
+            validate_game_settings(raw_data)
+            self.fps = raw_data.get('fps_cap', 60)
+            self.scale = raw_data.get('render_scale', 1.0)
+        except ConfigError as e:
+            logging.critical(f'failed to initialize config: {e}')
+            self.fps = 30
+            self.scale = 0.5
