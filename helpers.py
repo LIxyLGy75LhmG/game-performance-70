@@ -1,38 +1,41 @@
+import functools
 import time
-from functools import wraps
-from typing import Any, Callable, Dict
+import collections
 
-def frame_budget_guard(ms_limit: float = 16.67):
-    def decorator(func: Callable):
-        @wraps(func)
+def frame_rate_throttle(limit=60):
+    interval = 1.0 / limit
+    last_call = [0.0]
+    def decorator(func):
+        @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            start_time = time.perf_counter()
+            elapsed = time.perf_counter() - last_call[0]
+            if elapsed < interval:
+                time.sleep(interval - elapsed)
             result = func(*args, **kwargs)
-            elapsed = (time.perf_counter() - start_time) * 1000
-            if elapsed > ms_limit:
-                print(f'[PERF] Warning: {func.__name__} exceeded budget: {elapsed:.2f}ms')
+            last_call[0] = time.perf_counter()
             return result
         return wrapper
     return decorator
 
-class DataStreamOptimizer:
-    def __init__(self, buffer_size: int = 10):
-        self.cache: Dict[str, Any] = {}
-        self.buffer_size = buffer_size
+class DataCache:
+    def __init__(self, max_size=128):
+        self._cache = collections.OrderedDict()
+        self.max_size = max_size
 
-    def pack_game_state(self, entity_id: str, payload: Any) -> None:
-        self.cache[entity_id] = (payload, time.time())
-        if len(self.cache) > self.buffer_size:
-            oldest = min(self.cache, key=lambda k: self.cache[k][1])
-            del self.cache[oldest]
+    def get_or_compute(self, key, compute_func):
+        if key in self._cache:
+            self._cache.move_to_end(key)
+            return self._cache[key]
+        
+        val = compute_func()
+        self._cache[key] = val
+        self._cache.move_to_end(key)
+        if len(self._cache) > self.max_size:
+            self._cache.popitem(last=False)
+        return val
 
-    def get_state_snapshot(self) -> Dict[str, Any]:
-        return {k: v[0] for k, v in self.cache.items()}
+def fast_math_inv_sqrt(n):
+    if n <= 0: return 0
+    return 1.0 / (n ** 0.5)
 
-def delta_compress(current: dict, previous: dict) -> dict:
-    return {k: v for k, v in current.items() if previous.get(k) != v}
-
-if __name__ == '__main__':
-    optimizer = DataStreamOptimizer()
-    optimizer.pack_game_state('player_1', {'x': 100, 'y': 200})
-    print(f'Active state: {optimizer.get_state_snapshot()}')
+memoized_calculations = DataCache(256)
