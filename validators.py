@@ -1,31 +1,36 @@
 import functools
-from typing import Any, Callable, Dict
+import time
 
-def validate_telemetry(func: Callable) -> Callable:
-    @functools.wraps(func)
-    def wrapper(*args: Any, **kwargs: Any) -> Any:
-        data = args[0] if args else kwargs.get('data', {})
-        if not isinstance(data, dict):
-            raise ValueError('Telemetry payload must be a mapping')
-        required = {'fps', 'latency', 'gpu_temp'}
-        if not required.issubset(data.keys()):
-            missing = required - data.keys()
-            raise KeyError(f'Missing telemetry fields: {missing}')
-        return func(*args, **kwargs)
-    return wrapper
+def validate_frame_rate(fps_limit: int):
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            start = time.perf_counter()
+            result = func(*args, **kwargs)
+            duration = time.perf_counter() - start
+            target = 1.0 / fps_limit
+            if duration < target:
+                time.sleep(target - duration)
+            return result
+        return wrapper
+    return decorator
 
-class PerformanceSchema:
-    """Validator for exotic game frame data structures"""
-    @staticmethod
-    @validate_telemetry
-    def sanitize(payload: Dict[str, Any]) -> Dict[str, Any]:
-        # Clamp values to logical engine bounds
-        return {
-            'fps': max(0, min(999, payload.get('fps', 60))),
-            'latency': max(0, payload.get('latency', 0)),
-            'gpu_temp': max(20, min(120, payload.get('gpu_temp', 50))),
-            'meta': payload.get('meta', 'standard_frame')
-        }
+def validate_asset_path(path: str) -> bool:
+    allowed_ext = ('.png', '.json', '.wav', '.obj')
+    return path.lower().endswith(allowed_ext) and '..' not in path
 
-def frame_validator(func: Callable) -> Callable:
-    return lambda *args, **kwargs: func(PerformanceSchema.sanitize(args[0]), **kwargs)
+def validate_memory_usage(limit_mb: float):
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            import os
+            import psutil
+            process = psutil.Process(os.getpid())
+            mem_before = process.memory_info().rss / 1024 / 1024
+            result = func(*args, **kwargs)
+            mem_after = process.memory_info().rss / 1024 / 1024
+            if (mem_after - mem_before) > limit_mb:
+                print(f"Warning: {func.__name__} exceeded memory threshold")
+            return result
+        return wrapper
+    return decorator
