@@ -1,24 +1,32 @@
-from typing import Union, Dict, Any, Optional
+import functools
+import time
 
-def validate_frame_rate(fps: Union[int, float]) -> bool:
-    """Determines if the target frame rate is within standard gaming hardware bounds."""
-    return 30 <= fps <= 360
+def validate_frame_budget(ms_limit=16.67):
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            start = time.perf_counter()
+            result = func(*args, **kwargs)
+            duration = (time.perf_counter() - start) * 1000
+            if duration > ms_limit:
+                print(f'[PERF WARNING] {func.__name__} took {duration:.2f}ms')
+            return result
+        return wrapper
+    return decorator
 
-def validate_config_schema(config: Dict[str, Any], required_keys: list) -> bool:
-    """Checks if the game configuration object contains all mandatory performance keys."""
-    return all(key in config for key in required_keys)
+def clamp(value, min_val, max_val):
+    return max(min_val, min(value, max_val))
 
-class PerformanceThreshold:
-    """Engine constraint validator using a callback-style interface for frame latency."""
-    def __init__(self, limit_ms: float = 16.67):
-        self.limit_ms = limit_ms
+def is_power_of_two(n):
+    return (n & (n - 1) == 0) and n > 0
 
-    def is_within_spec(self, frame_time: float) -> bool:
-        """Compares current frame delivery time against the initialized limit."""
-        return frame_time <= self.limit_ms
+def sanitize_input(value, default, type_cast=int):
+    try:
+        return type_cast(value)
+    except (ValueError, TypeError):
+        return default
 
-def sanitize_input(user_input: Any) -> Optional[str]:
-    """Normalizes input data strings, returning None for invalid game command types."""
-    if isinstance(user_input, str) and len(user_input) < 128:
-        return user_input.strip().lower()
-    return None
+def check_memory_overhead(obj, threshold_bytes=1024):
+    import sys
+    size = sys.getsizeof(obj)
+    return size < threshold_bytes, size
