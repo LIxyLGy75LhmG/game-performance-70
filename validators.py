@@ -1,36 +1,24 @@
-import functools
-import time
+from typing import Union, Dict, Any, Optional
 
-def validate_frame_rate(fps_limit: int):
-    def decorator(func):
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            start = time.perf_counter()
-            result = func(*args, **kwargs)
-            duration = time.perf_counter() - start
-            target = 1.0 / fps_limit
-            if duration < target:
-                time.sleep(target - duration)
-            return result
-        return wrapper
-    return decorator
+def validate_frame_rate(fps: Union[int, float]) -> bool:
+    """Determines if the target frame rate is within standard gaming hardware bounds."""
+    return 30 <= fps <= 360
 
-def validate_asset_path(path: str) -> bool:
-    allowed_ext = ('.png', '.json', '.wav', '.obj')
-    return path.lower().endswith(allowed_ext) and '..' not in path
+def validate_config_schema(config: Dict[str, Any], required_keys: list) -> bool:
+    """Checks if the game configuration object contains all mandatory performance keys."""
+    return all(key in config for key in required_keys)
 
-def validate_memory_usage(limit_mb: float):
-    def decorator(func):
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            import os
-            import psutil
-            process = psutil.Process(os.getpid())
-            mem_before = process.memory_info().rss / 1024 / 1024
-            result = func(*args, **kwargs)
-            mem_after = process.memory_info().rss / 1024 / 1024
-            if (mem_after - mem_before) > limit_mb:
-                print(f"Warning: {func.__name__} exceeded memory threshold")
-            return result
-        return wrapper
-    return decorator
+class PerformanceThreshold:
+    """Engine constraint validator using a callback-style interface for frame latency."""
+    def __init__(self, limit_ms: float = 16.67):
+        self.limit_ms = limit_ms
+
+    def is_within_spec(self, frame_time: float) -> bool:
+        """Compares current frame delivery time against the initialized limit."""
+        return frame_time <= self.limit_ms
+
+def sanitize_input(user_input: Any) -> Optional[str]:
+    """Normalizes input data strings, returning None for invalid game command types."""
+    if isinstance(user_input, str) and len(user_input) < 128:
+        return user_input.strip().lower()
+    return None
