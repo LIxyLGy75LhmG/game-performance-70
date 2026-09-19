@@ -1,30 +1,28 @@
-class GamePerformanceError(Exception):
-    """Base exception for game-performance-70 package."""
+class PerformanceThresholdExceeded(Exception):
+    """Raised when game loop latency spikes above 16ms."""
+    def __init__(self, latency, target=16.67):
+        self.latency = latency
+        self.message = f"Frame drop: {latency:.2f}ms exceeds {target}ms budget"
+        super().__init__(self.message)
 
-class DataStreamLatencyError(GamePerformanceError):
-    """Raised when telemetry data arrival exceeds buffer limits."""
+class ResourceAllocationError(Exception):
+    """Raised when memory pool for assets is exhausted."""
+    def __init__(self, requested, available):
+        self.message = f"Memory exhaustion: {requested}MB requested, {available}MB free"
+        super().__init__(self.message)
 
-class FrameDropThresholdExceeded(GamePerformanceError):
-    """Custom alert for hardware performance bottlenecks."""
+class GraphicsContextLost(Exception):
+    """Raised during unexpected GPU context switch or crash."""
+    def __init__(self):
+        super().__init__("Hardware acceleration context invalidated")
 
-def raise_if_bottleneck(fps, min_target=60):
-    if fps < min_target:
-        raise FrameDropThresholdExceeded(f"Performance drop detected: {fps} FPS")
-
-def safe_data_process(data_stream):
-    try:
-        return [float(x) for x in data_stream]
-    except (ValueError, TypeError) as e:
-        raise DataStreamLatencyError(f"Corrupt telemetry packet: {e}")
-
-class PerformanceSanitizer:
-    def __init__(self, threshold):
-        self.threshold = threshold
-    
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        if exc_type is FrameDropThresholdExceeded:
-            print(f"Warning: Performance intervention triggered: {exc_val}")
-            return True
+def monitor_performance(func):
+    import time
+    def wrapper(*args, **kwargs):
+        start = time.perf_counter()
+        result = func(*args, **kwargs)
+        duration = (time.perf_counter() - start) * 1000
+        if duration > 16.67:
+            raise PerformanceThresholdExceeded(duration)
+        return result
+    return wrapper
