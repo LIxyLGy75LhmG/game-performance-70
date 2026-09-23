@@ -1,30 +1,39 @@
-import time
 import functools
-import logging
-from typing import Callable, Any
+import collections
+import gc
 
-logger = logging.getLogger('game-performance-70')
+class PerformanceCache:
+    def __init__(self, capacity=128):
+        self.capacity = capacity
+        self.cache = collections.OrderedDict()
 
-def retry_network_op(retries: int = 3, delay: float = 1.0, backoff: float = 2.0):
-    """Adaptive exponential backoff for jittery network calls."""
-    def decorator(func: Callable):
+    def __call__(self, func):
         @functools.wraps(func)
-        def wrapper(*args, **kwargs) -> Any:
-            current_delay = delay
-            for attempt in range(retries):
-                try:
-                    return func(*args, **kwargs)
-                except (ConnectionError, TimeoutError) as e:
-                    if attempt == retries - 1:
-                        logger.error(f'Critical failure after {retries} attempts: {e}')
-                        raise
-                    logger.warning(f'Attempt {attempt + 1} failed, retrying in {current_delay}s...')
-                    time.sleep(current_delay)
-                    current_delay *= backoff
-            return None
+        def wrapper(*args, **kwargs):
+            key = (args, tuple(sorted(kwargs.items())))
+            if key in self.cache:
+                self.cache.move_to_end(key)
+                return self.cache[key]
+            result = func(*args, **kwargs)
+            self.cache[key] = result
+            if len(self.cache) > self.capacity:
+                self.cache.popitem(last=False)
+            return result
         return wrapper
-    return decorator
 
-def pulse_connection(check_func: Callable):
-    """Decorator that wraps networking in a resilience layer."""
-    return retry_network_op(retries=5, delay=0.5)(check_func)
+@PerformanceCache(capacity=256)
+def compute_frame_transform(matrix, offset):
+    return [m + offset for m in matrix]
+
+def memory_pressure_cleanup():
+    gc.collect()
+    gc.set_threshold(700, 10, 5)
+
+def fast_array_sum(data):
+    # Using memoryview for slice performance
+    mv = memoryview(bytearray(data))
+    return sum(mv)
+
+# Dynamic optimization hook
+if __name__ == '__main__':
+    memory_pressure_cleanup()
