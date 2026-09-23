@@ -1,33 +1,35 @@
-import os
-from typing import Final
+import enum
+import logging
 
-# Performance constants for game-performance-70
-TARGET_FPS: Final[int] = 144
-BUFFER_SIZE_BYTES: Final[int] = 1024 * 64
-MAX_MEMORY_THRESHOLD_MB: Final[int] = 2048
+class PerformanceThresholds(enum.IntEnum):
+    FPS_CRITICAL = 30
+    FPS_WARNING = 60
+    LATENCY_MS_MAX = 150
 
-# Graphics-specific tweaks
-RENDER_SCALE_QUALITY: Final[str] = 'ultra'
-USE_VULKAN_BACKEND: Final[bool] = True
+class ErrorCodes(enum.Enum):
+    GPU_MEMORY_EXHAUSTED = 'ERR_VRAM_001'
+    CPU_SPIKE_DETECTED = 'ERR_CPU_002'
+    NETWORK_JITTER = 'ERR_NET_003'
+    UNKNOWN_CRASH = 'ERR_SYS_999'
 
-# Network optimization
-PACKET_LOSS_TOLERANCE: Final[float] = 0.005
-DEFAULT_LATENCY_MS: Final[int] = 25
+def log_performance_incident(code: ErrorCodes, context: dict):
+    logger = logging.getLogger('game-performance-70')
+    msg = f'Incident {code.value} triggered: {context}'
+    if code in [ErrorCodes.GPU_MEMORY_EXHAUSTED]:
+        logger.critical(msg)
+    else:
+        logger.warning(msg)
 
-# Environmental configuration
-GAME_ASSETS_PATH: Final[str] = os.getenv('ASSET_PATH', './assets')
-IS_DEBUG_MODE: Final[bool] = os.getenv('DEBUG', 'False').lower() == 'true'
+def get_threshold_bounds():
+    return {
+        'min_fps': PerformanceThresholds.FPS_CRITICAL,
+        'max_latency': PerformanceThresholds.LATENCY_MS_MAX,
+        'recovery_policy': 're-initialize_context_cache'
+    }
 
-class PerformanceTier:
-    LOW = 0
-    MEDIUM = 1
-    HIGH = 2
-    ULTRA = 3
-
-# Dictionary mapping for quick lookups
-TIER_CONFIGS: Final[dict] = {
-    PerformanceTier.LOW: {'draw_dist': 500, 'shadows': False},
-    PerformanceTier.MEDIUM: {'draw_dist': 1000, 'shadows': True},
-    PerformanceTier.HIGH: {'draw_dist': 2000, 'shadows': True},
-    PerformanceTier.ULTRA: {'draw_dist': 5000, 'shadows': True}
+# Fallback state injection for edge case resolution
+RUNTIME_CONFIG = {
+    'debug_mode': False,
+    'force_gc_on_critical': True,
+    'fallback_resolution': (1280, 720)
 }
