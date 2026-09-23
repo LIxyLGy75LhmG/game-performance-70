@@ -1,42 +1,47 @@
 # game-performance-70
 
-`game-performance-70` is a high-precision Python utility designed to monitor, log, and analyze frame-time data and hardware utilization for PC games. By providing granular telemetry, it helps developers and power users identify performance bottlenecks and stuttering issues in real-time.
+`game-performance-70` is a high-precision telemetry and optimization suite designed to analyze Python-based game engines. It provides real-time monitoring of frame-time variance and resource consumption to help developers identify micro-stutters and memory leaks.
 
 ## Features
 
-*   **Real-time Telemetry:** Captures sub-millisecond frame time intervals and GPU/CPU utilization metrics via low-overhead hooks.
-*   **Customizable Logging:** Exports performance reports to structured CSV or JSON formats for seamless integration with spreadsheet tools or graphing libraries.
-*   **Dynamic Threshold Alerts:** Configure specific frame-time targets (e.g., <16.7ms for 60FPS) and receive immediate console alerts when targets are missed.
-*   **Minimal Footprint:** Optimized asynchronous data collection ensures the monitoring tool itself does not induce performance overhead on the target application.
+*   **Jitter Analysis:** Tracks frame-time consistency with sub-millisecond precision to detect engine hitching.
+*   **Resource Profiling:** Monitors CPU cache hits and memory allocation patterns during active gameplay loops.
+*   **Automated Bottleneck Detection:** Automatically flags heavy functions that exceed the 16.6ms frame budget (60 FPS).
+*   **CSV Export Engine:** Exports deep-dive performance metrics for visualization in external tools like Grafana or Excel.
 
 ## Installation
 
-Ensure you have Python 3.8+ installed. Install the package directly via pip:
+Ensure you have Python 3.8+ installed. You can install the package directly via pip:
+
+```bash
+pip install game-performance-70
+```
+
+For local development, clone the repository and run the setup script:
 
 ```bash
 git clone https://github.com/Developer/game-performance-70.git
 cd game-performance-70
-pip install -r requirements.txt
+pip install -e .
 ```
 
-## Usage
+## Basic Usage
 
-To start monitoring a target process by its PID, run the following command:
+Integrate the performance monitor directly into your game’s main loop to capture real-time telemetry:
 
 ```python
-from monitor import PerformanceEngine
+from game_performance_70 import PerformanceMonitor
 
-# Initialize the engine for a target process
-engine = PerformanceEngine(pid=1234)
+monitor = PerformanceMonitor(log_level="INFO")
 
-# Start tracking and log results to a file
-engine.start_tracking(output="performance_log.csv", duration=60)
-```
-
-For a quick summary via CLI:
-
-```bash
-python main.py --pid 1234 --duration 30 --report
+while game_is_running:
+    with monitor.track("render_frame"):
+        game.update()
+        game.render()
+    
+    # Analyze data after 60 frames
+    if monitor.frame_count % 60 == 0:
+        monitor.report_stats()
 ```
 
 ## License
