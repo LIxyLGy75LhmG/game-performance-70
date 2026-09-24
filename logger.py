@@ -1,54 +1,53 @@
 import sys
-import json
 import time
-from collections import deque
-from typing import Dict, Any, Optional
+import logging
+from logging.handlers import RotatingFileHandler
+from pathlib import Path
 
-class PerformanceLogger:
-    """Edge-case resilient frame telemetry logger for game engine metrics."""
+class FrameAwareFormatter(logging.Formatter):
+    """Formats log records with frame delta timing for game performance tracing."""
+    def __init__(self, fmt: str = None):
+        super().__init__(fmt or "%(asctime)s [%(levelname)s] [dt:%(delta_ms)06.2fms] %(message)s")
+        self._last_tick = time.perf_counter()
 
-    def __init__(self, max_buffer: int = 100, output_file: str = "perf_metrics.jsonl"):
-        self._buffer = deque(maxlen=max_buffer)
-        self._output_file = output_file
-        self._fallback_active = False
+    def format(self, record: logging.LogRecord) -> str:
+        now = time.perf_counter()
+        record.delta_ms = (now - self._last_tick) * 1000.0
+        self._last_tick = now
+        return super().format(record)
 
-    def log_frame_metric(self, frame_id: int, fps: float, gpu_temp: float, extra: Optional[Dict[str, Any]] = None) -> bool:
-        try:
-            # Graceful recovery for non-numeric or corrupted values
-            safe_fps = float(fps) if isinstance(fps, (int, float, str)) and str(fps).replace('.', '', 1).isdigit() else 0.0
-            safe_temp = float(gpu_temp) if isinstance(gpu_temp, (int, float)) else -1.0
-            
-            payload = {
-                "timestamp": time.time_ns(),
-                "frame": int(frame_id) if isinstance(frame_id, (int, float)) else -1,
-                "fps": round(safe_fps, 2),
-                "gpu_temp_c": round(safe_temp, 1),
-                "meta": extra if isinstance(extra, dict) else {"raw_extra": str(extra)}
-            }
-            
-            self._buffer.append(payload)
-            self._flush_payload(payload)
-            return True
+def setup_performance_logger(
+    log_dir: str = "logs",
+    filename: str = "telemetry.log",
+    max_bytes: int = 5 * 1024 * 1024,
+    backup_count: int = 3
+) -> logging.Logger:
+    """Configures a rotating performance logger tuned for high-frequency telemetry."""
+    target_path = Path(log_dir)
+    target_path.mkdir(parents=True, exist_ok=True)
+    log_file = target_path / filename
 
-        except Exception as err:
-            self._handle_edge_failure(err, frame_id)
-            return False
+    logger = logging.getLogger("game_performance")
+    logger.setLevel(logging.DEBUG)
+    logger.handlers.clear()
 
-    def _flush_payload(self, payload: Dict[str, Any]) -> None:
-        if self._fallback_active:
-            sys.stderr.write(f"[FALLBACK METRIC] {json.dumps(payload)}\n")
-            return
+    formatter = FrameAwareFormatter()
 
-        try:
-            with open(self._output_file, "a", encoding="utf-8") as f:
-                f.write(json.dumps(payload) + "\n")
-        except (IOError, OSError, PermissionError):
-            self._fallback_active = True
-            sys.stderr.write("[WARN] Primary stream failed. Dropping to emergency stderr.\n")
-            sys.stderr.write(f"[FALLBACK METRIC] {json.dumps(payload)}\n")
+    file_handler = RotatingFileHandler(
+        log_file,
+        maxBytes=max_bytes,
+        backupCount=backup_count,
+        encoding="utf-8"
+    )
+    file_handler.setLevel(logging.DEBUG)
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
 
-    def _handle_edge_failure(self, error: Exception, frame_id: Any) -> None:
-        sys.stderr.write(f"[LOG FATAL] Malformed telemetry frame '{frame_id}': {type(error).__name__} - {error}\n")
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setLevel(logging.INFO)
+    console_handler.setFormatter(formatter)
+    logger.addHandler(console_handler)
 
-    def dump_ring_buffer(self) -> list:
-        return list(self._buffer)
+    return logger
+
+perf_logger = setup_performance_logger()
