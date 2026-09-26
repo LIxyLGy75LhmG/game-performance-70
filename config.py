@@ -1,35 +1,35 @@
-import os
-from dataclasses import dataclass, field
-from typing import Dict, Any
+import json
+from pathlib import Path
+from typing import Any, Dict
 
-@dataclass(frozen=True)
-class PerformanceSettings:
-    target_fps: int = 144
-    sample_rate: float = 0.01
-    engine_debug_mode: bool = False
-    buffer_limit: int = 1024
+class ConfigLoader:
+    def __init__(self, defaults: Dict[str, Any], path: str = 'config.json'):
+        self.path = Path(path)
+        self.data = defaults.copy()
+        self._load()
 
-class GameConfig:
-    def __init__(self, overrides: Dict[str, Any] = None):
-        self._base = PerformanceSettings()
-        self._overrides = overrides or {}
+    def _load(self) -> None:
+        if self.path.exists():
+            try:
+                with open(self.path, 'r') as f:
+                    user_data = json.load(f)
+                    self._recursive_update(self.data, user_data)
+            except (json.JSONDecodeError, IOError):
+                pass
 
-    def get(self, key: str, default: Any = None) -> Any:
-        if key in self._overrides:
-            return self._overrides[key]
-        return getattr(self._base, key, default)
+    def _recursive_update(self, target: Dict, source: Dict) -> None:
+        for key, value in source.items():
+            if isinstance(value, dict) and key in target and isinstance(target[key], dict):
+                self._recursive_update(target[key], value)
+            else:
+                target[key] = value
 
-    @property
-    def environment_mode(self) -> str:
-        return os.getenv('GAME_ENV', 'production')
+    def get(self, key: str, fallback: Any = None) -> Any:
+        return self.data.get(key, fallback)
 
-    def __repr__(self) -> str:
-        return f"GameConfig(mode={self.environment_mode}, settings={self._base})"
+    def save(self) -> None:
+        with open(self.path, 'w') as f:
+            json.dump(self.data, f, indent=4)
 
-def load_config_registry() -> GameConfig:
-    # Using a registry pattern for centralized config management
-    raw_data = {
-        'target_fps': int(os.getenv('MAX_FPS', 60)),
-        'engine_debug_mode': os.getenv('DEBUG', 'False').lower() == 'true'
-    }
-    return GameConfig(overrides=raw_data)
+def load_game_config(defaults: Dict[str, Any]) -> ConfigLoader:
+    return ConfigLoader(defaults)
