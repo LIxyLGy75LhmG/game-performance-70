@@ -1,35 +1,63 @@
 import json
+import os
+from collections import ChainMap
 from pathlib import Path
 from typing import Any, Dict
 
-class ConfigLoader:
-    def __init__(self, defaults: Dict[str, Any], path: str = 'config.json'):
-        self.path = Path(path)
-        self.data = defaults.copy()
-        self._load()
+DEFAULT_PERFORMANCE_PROFILE: Dict[str, Any] = {
+    "target_fps": 144,
+    "max_frame_latency": 2,
+    "resolution_scale": 1.0,
+    "vsync": False,
+    "gpu_memory_budget_mb": 4096,
+    "render_threads": max(1, (os.cpu_count() or 4) - 2),
+    "enable_dlss": True,
+    "asset_streaming_bandwidth_mbps": 500.0,
+}
 
-    def _load(self) -> None:
-        if self.path.exists():
+
+class DynamicConfigLoader:
+    """Cascading performance configuration loader for gaming runtime engines."""
+
+    def __init__(self, config_path: str = "settings.json"):
+        self.config_path = Path(config_path)
+        self._store: ChainMap = ChainMap()
+        self.reload()
+
+    def reload(self) -> None:
+        file_data: Dict[str, Any] = {}
+        if self.config_path.exists():
             try:
-                with open(self.path, 'r') as f:
-                    user_data = json.load(f)
-                    self._recursive_update(self.data, user_data)
-            except (json.JSONDecodeError, IOError):
-                pass
+                with open(self.config_path, "r", encoding="utf-8") as f:
+                    file_data = json.load(f)
+            except (json.JSONDecodeError, OSError):
+                file_data = {}
 
-    def _recursive_update(self, target: Dict, source: Dict) -> None:
-        for key, value in source.items():
-            if isinstance(value, dict) and key in target and isinstance(target[key], dict):
-                self._recursive_update(target[key], value)
-            else:
-                target[key] = value
+        env_overrides: Dict[str, Any] = {}
+        for key in DEFAULT_PERFORMANCE_PROFILE:
+            env_key = f"GAME_PERF_{key.upper()}"
+            if env_key in os.environ:
+                val = os.environ[env_key]
+                if val.lower() in ("true", "false"):
+                    env_overrides[key] = val.lower() == "true"
+                else:
+                    try:
+                        env_overrides[key] = int(val) if "." not in val else float(val)
+                    except ValueError:
+                        env_overrides[key] = val
 
-    def get(self, key: str, fallback: Any = None) -> Any:
-        return self.data.get(key, fallback)
+        self._store = ChainMap(env_overrides, file_data, DEFAULT_PERFORMANCE_PROFILE)
 
-    def save(self) -> None:
-        with open(self.path, 'w') as f:
-            json.dump(self.data, f, indent=4)
+    def __getattr__(self, name: str) -> Any:
+        if name in self._store:
+            return self._store[name]
+        raise AttributeError(f"Performance config option '{name}' not found")
 
-def load_game_config(defaults: Dict[str, Any]) -> ConfigLoader:
-    return ConfigLoader(defaults)
+    def __getitem__(self, item: str) -> Any:
+        return getattr(self, item)
+
+    def export_effective_config(self) -> Dict[str, Any]:
+        return dict(self._store)
+
+
+sys_config = DynamicConfigLoader()
