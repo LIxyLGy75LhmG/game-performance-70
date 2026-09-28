@@ -1,54 +1,46 @@
-import math
-from typing import Dict, List, Tuple
+import functools
+import time
 
-class FastEntityGrid:
-    """
-    Z-Order curve (Morton space filling) spatial partitioner for O(1) proximity lookups.
-    Avoids slow Euclidean distance loops for 2D gaming coordinate comparisons.
-    """
-    __slots__ = ('resolution', 'cell_size', 'grid')
+class EntityCache:
+    _storage = {}
+    _tick = 0
 
-    def __init__(self, cell_size: int = 32, resolution: int = 1024):
-        self.cell_size = cell_size
-        self.resolution = resolution
-        self.grid: Dict[int, List[Tuple[int, float, float]]] = {}
+    @classmethod
+    def get_frame_key(cls, entity_id):
+        return f"{entity_id}:{cls._tick // 2}"
 
-    def _morton_encode(self, x: int, y: int) -> int:
-        # Interleave bits of 16-bit coordinates to create a 1D spatial index hash
-        x = (x | (x << 8)) & 0x00FF00FF
-        x = (x | (x << 4)) & 0x0F0F0F0F
-        x = (x | (x << 2)) & 0x33333333
-        x = (x | (x << 1)) & 0x55555555
+    @classmethod
+    def memoize_state(cls, func):
+        @functools.wraps(func)
+        def wrapper(entity_id, *args, **kwargs):
+            key = cls.get_frame_key(entity_id)
+            if key not in cls._storage:
+                cls._storage[key] = func(entity_id, *args, **kwargs)
+            return cls._storage[key]
+        return wrapper
 
-        y = (y | (y << 8)) & 0x00FF00FF
-        y = (y | (y << 4)) & 0x0F0F0F0F
-        y = (y | (y << 2)) & 0x33333333
-        y = (y | (y << 1)) & 0x55555555
+    @classmethod
+    def refresh(cls):
+        cls._tick += 1
+        if cls._tick > 100:
+            cls._storage.clear()
+            cls._tick = 0
 
-        return x | (y << 1)
+@EntityCache.memoize_state
+def calculate_physics_vector(entity_id):
+    # Simulate expensive vector math
+    time.sleep(0.01)
+    return [0.0, 9.8, 0.0]
 
-    def insert(self, entity_id: int, x: float, y: float) -> None:
-        gx = max(0, min(int(x // self.cell_size), self.resolution - 1))
-        gy = max(0, min(int(y // self.cell_size), self.resolution - 1))
-        
-        morton_key = self._morton_encode(gx, gy)
-        if morton_key not in self.grid:
-            self.grid[morton_key] = []
-        self.grid[morton_key].append((entity_id, x, y))
+def process_game_loop(entities):
+    results = []
+    for e in entities:
+        results.append(calculate_physics_vector(e))
+    EntityCache.refresh()
+    return results
 
-    def clear(self) -> None:
-        self.grid.clear()
-
-    def get_neighbors(self, x: float, y: float) -> List[Tuple[int, float, float]]:
-        gx = max(0, min(int(x // self.cell_size), self.resolution - 1))
-        gy = max(0, min(int(y // self.cell_size), self.resolution - 1))
-        
-        neighbors = []
-        for dx in (-1, 0, 1):
-            for dy in (-1, 0, 1):
-                nx, ny = gx + dx, gy + dy
-                if 0 <= nx < self.resolution and 0 <= ny < self.resolution:
-                    m_key = self._morton_encode(nx, ny)
-                    if m_key in self.grid:
-                        neighbors.extend(self.grid[m_key])
-        return neighbors
+if __name__ == '__main__':
+    ids = [1, 2, 3, 4, 5]
+    # Fast call on second loop
+    print(process_game_loop(ids))
+    print(process_game_loop(ids))
