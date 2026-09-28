@@ -1,37 +1,42 @@
-import gc
+import functools
 import time
-import logging
+
+class FrameOptimizer:
+    def __init__(self, cache_size=128):
+        self.cache = {}
+        self.cache_size = cache_size
+
+    def __call__(self, func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            key = (args, tuple(sorted(kwargs.items())))
+            if key in self.cache:
+                return self.cache[key]
+            result = func(*args, **kwargs)
+            if len(self.cache) >= self.cache_size:
+                self.cache.pop(next(iter(self.cache)))
+            self.cache[key] = result
+            return result
+        return wrapper
 
 class PerformanceHandler:
-    def __init__(self, threshold_ms=16.6):
-        self.threshold = threshold_ms
-        self.logger = logging.getLogger('game-performance-70')
-        self.metrics = {'frame_times': [], 'gc_events': 0}
+    def __init__(self, target_fps=60):
+        self.frame_time = 1.0 / target_fps
+        self.last_sync = time.perf_counter()
 
-    def monitor_frame(self, frame_start_time):
-        duration = (time.perf_counter() - frame_start_time) * 1000
-        self.metrics['frame_times'].append(duration)
-        
-        if duration > self.threshold:
-            self._trigger_cleanup(duration)
+    def throttle(self, logic_func):
+        """Executes logic with high-precision frame throttling"""
+        def inner(*args, **kwargs):
+            start = time.perf_counter()
+            result = logic_func(*args, **kwargs)
+            elapsed = time.perf_counter() - start
+            sleep_time = self.frame_time - elapsed
+            if sleep_time > 0:
+                time.sleep(sleep_time)
+            return result
+        return inner
 
-    def _trigger_cleanup(self, lag_spike):
-        self.logger.warning(f'Lag spike detected: {lag_spike:.2f}ms. Initiating recovery.')
-        
-        gc.disable()
-        self.metrics['gc_events'] += 1
-        
-        # Unconventional aggressive cleanup
-        cleared = gc.collect(generation=2)
-        
-        gc.enable()
-        self.logger.info(f'Recovery complete. Objects cleared: {cleared}')
+def batch_process_entities(entities, transform):
+    return [transform(e) for e in entities if e.get('active', True)]
 
-    def get_status(self):
-        return {
-            'avg_frame_time': sum(self.metrics['frame_times'][-100:]) / 100 if self.metrics['frame_times'] else 0,
-            'recovery_count': self.metrics['gc_events']
-        }
-
-def create_handler(threshold=16.6):
-    return PerformanceHandler(threshold)
+optimized_handler = PerformanceHandler()
