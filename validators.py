@@ -1,32 +1,31 @@
-from typing import Any, Dict, Optional
+import functools
+from typing import Any, Callable, Dict
 
-MAX_LATENCY_MS = 500
-INPUT_FIELDS = {'tick_rate', 'frame_delta', 'input_buffer'}
+class PerformanceGuard:
+    """Enforces strict latency constraints on high-frequency gaming telemetry."""
+    def __init__(self, ms_threshold: float = 16.67):
+        self.ms_threshold = ms_threshold
 
-class ValidationError(Exception):
-    pass
+    def __call__(self, func: Callable):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            import time
+            start = time.perf_counter()
+            result = func(*args, **kwargs)
+            elapsed = (time.perf_counter() - start) * 1000
+            if elapsed > self.ms_threshold:
+                print(f"[PERF] {func.__name__} spiked to {elapsed:.2f}ms")
+            return result
+        return wrapper
 
-def validate_game_payload(payload: Dict[str, Any]) -> bool:
-    """Validate performance telemetry packets."""
-    if not isinstance(payload, dict):
-        raise ValidationError('payload must be a dictionary')
-    
-    if not INPUT_FIELDS.issubset(payload.keys()):
-        missing = INPUT_FIELDS - payload.keys()
-        raise ValidationError(f'missing telemetry fields: {missing}')
+def validate_game_state(data: Dict[str, Any]) -> bool:
+    """Checks packet structure for competitive integrity."""
+    required = {'player_id', 'pos_x', 'pos_y', 'timestamp'}
+    return all(key in data for key in required) and isinstance(data['pos_x'], (int, float))
 
-    if payload['tick_rate'] < 0 or payload['tick_rate'] > 1000:
-        raise ValidationError('invalid tick rate frequency')
-
-    if payload['frame_delta'] > MAX_LATENCY_MS:
-        return False
-
-    return True
-
-def sanitize_input(data: Dict[str, Any]) -> Dict[str, Any]:
-    """Force numeric types for processing safety."""
-    return {
-        'tick_rate': float(data.get('tick_rate', 60)),
-        'frame_delta': abs(float(data.get('frame_delta', 0))),
-        'input_buffer': str(data.get('input_buffer', ''))[:256]
-    }
+def sanitize_input(val: Any) -> float:
+    """Forces numeric bounds for coordinate packets."""
+    try:
+        return float(max(min(val, 9999.0), -9999.0))
+    except (ValueError, TypeError):
+        return 0.0
