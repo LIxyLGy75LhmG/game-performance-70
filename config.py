@@ -1,63 +1,58 @@
 import json
 import os
-from collections import ChainMap
-from pathlib import Path
 from typing import Any, Dict
 
-DEFAULT_PERFORMANCE_PROFILE: Dict[str, Any] = {
+DEFAULT_GAME_CONFIG: Dict[str, Any] = {
     "target_fps": 144,
-    "max_frame_latency": 2,
-    "resolution_scale": 1.0,
+    "render_scale": 1.0,
     "vsync": False,
-    "gpu_memory_budget_mb": 4096,
-    "render_threads": max(1, (os.cpu_count() or 4) - 2),
-    "enable_dlss": True,
-    "asset_streaming_bandwidth_mbps": 500.0,
+    "max_worker_threads": 8,
+    "shadow_quality": "medium",
+    "fov": 90.0,
+    "telemetry_enabled": True,
+    "sound_channels": 64,
 }
 
 
 class DynamicConfigLoader:
-    """Cascading performance configuration loader for gaming runtime engines."""
+    """A dynamic config loader blending files, env vars, and gaming defaults."""
 
-    def __init__(self, config_path: str = "settings.json"):
-        self.config_path = Path(config_path)
-        self._store: ChainMap = ChainMap()
+    def __init__(self, filepath: str = "game_config.json") -> None:
+        self._filepath = filepath
+        self._store: Dict[str, Any] = {}
         self.reload()
 
     def reload(self) -> None:
-        file_data: Dict[str, Any] = {}
-        if self.config_path.exists():
+        self._store = dict(DEFAULT_GAME_CONFIG)
+        if os.path.exists(self._filepath):
             try:
-                with open(self.config_path, "r", encoding="utf-8") as f:
+                with open(self._filepath, "r", encoding="utf-8") as f:
                     file_data = json.load(f)
+                    if isinstance(file_data, dict):
+                        self._store.update(file_data)
             except (json.JSONDecodeError, OSError):
-                file_data = {}
+                pass
 
-        env_overrides: Dict[str, Any] = {}
-        for key in DEFAULT_PERFORMANCE_PROFILE:
+        for key, default_val in DEFAULT_GAME_CONFIG.items():
             env_key = f"GAME_PERF_{key.upper()}"
             if env_key in os.environ:
-                val = os.environ[env_key]
-                if val.lower() in ("true", "false"):
-                    env_overrides[key] = val.lower() == "true"
+                raw_val = os.environ[env_key]
+                val_type = type(default_val)
+                if val_type is bool:
+                    self._store[key] = raw_val.lower() in ("1", "true", "yes")
                 else:
                     try:
-                        env_overrides[key] = int(val) if "." not in val else float(val)
+                        self._store[key] = val_type(raw_val)
                     except ValueError:
-                        env_overrides[key] = val
-
-        self._store = ChainMap(env_overrides, file_data, DEFAULT_PERFORMANCE_PROFILE)
+                        pass
 
     def __getattr__(self, name: str) -> Any:
         if name in self._store:
             return self._store[name]
-        raise AttributeError(f"Performance config option '{name}' not found")
+        raise AttributeError(f"Configuration key '{name}' does not exist")
 
     def __getitem__(self, item: str) -> Any:
-        return getattr(self, item)
+        return self._store[item]
 
-    def export_effective_config(self) -> Dict[str, Any]:
+    def as_dict(self) -> Dict[str, Any]:
         return dict(self._store)
-
-
-sys_config = DynamicConfigLoader()
