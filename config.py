@@ -1,61 +1,60 @@
 import os
-import json
-from pathlib import Path
-from typing import Any, Dict, Union
+from typing import Any, Dict
 
-DEFAULT_PROFILE: Dict[str, Any] = {
-    "target_fps": 144,
-    "max_rendered_frames": 2,
-    "enable_dlss": True,
-    "dlss_mode": "quality",
-    "vsync": False,
-    "thread_pool_size": 8,
-    "gpu_memory_budget_mb": 6144,
+DEFAULT_SETTINGS: Dict[str, Any] = {
+    "target_fps": 60,
+    "unlocked_fps": False,
     "resolution_scale": 1.0,
+    "shadow_quality": "medium",
+    "threaded_rendering": True,
+    "latency_reduction": True,
 }
 
-class ConfigLoader:
-    """Dynamic game configuration overlay with environment variable injection."""
-    
-    def __init__(self, config_path: Union[str, Path] = "game_settings.json"):
-        self.config_path = Path(config_path)
-        self._data: Dict[str, Any] = {}
-        self.reload()
+PRESETS: Dict[str, Dict[str, Any]] = {
+    "potato": {
+        "target_fps": 30,
+        "resolution_scale": 0.75,
+        "shadow_quality": "low",
+        "threaded_rendering": False,
+    },
+    "competitive": {
+        "target_fps": 240,
+        "unlocked_fps": True,
+        "resolution_scale": 0.9,
+        "shadow_quality": "off",
+        "latency_reduction": True,
+    },
+}
 
-    def reload(self) -> None:
-        """Loads base configuration and overlays active defaults and ENV overrides."""
-        base = DEFAULT_PROFILE.copy()
-        if self.config_path.exists():
-            try:
-                with open(self.config_path, "r", encoding="utf-8") as f:
-                    file_data = json.load(f)
-                    base.update(file_data)
-            except (json.JSONDecodeError, OSError):
-                pass
-        
-        for key in base:
-            env_var = f"GAME_{key.upper()}"
-            if env_var in os.environ:
-                val = os.environ[env_var]
-                base[key] = type(base[key])(val) if not isinstance(base[key], bool) else val.lower() == "true"
-        
-        self._data = base
+class PerformanceConfig:
+    def __init__(self, preset_name: str = "balanced"):
+        self._settings = DEFAULT_SETTINGS.copy()
+        preset = preset_name.lower()
+        if preset in PRESETS:
+            self._settings.update(PRESETS[preset])
+        self._user_overrides: Dict[str, Any] = {}
+
+    def load_from_env(self) -> None:
+        for key, default_val in self._settings.items():
+            env_key = f"GAME_PERF_{key.upper()}"
+            if env_key in os.environ:
+                raw_val = os.environ[env_key]
+                target_type = type(default_val)
+                try:
+                    if target_type is bool:
+                        self._user_overrides[key] = raw_val.lower() in ("true", "1", "yes", "on")
+                    else:
+                        self._user_overrides[key] = target_type(raw_val)
+                except ValueError:
+                    pass
 
     def __getattr__(self, name: str) -> Any:
-        if name in self._data:
-            return self._data[name]
-        raise AttributeError(f"Configuration key '{name}' is not registered.")
-
-    def __setattr__(self, name: str, value: Any) -> None:
-        if name in ("config_path", "_data"):
-            super().__setattr__(name, value)
-        else:
-            self._data[name] = value
+        if name in self._user_overrides:
+            return self._user_overrides[name]
+        if name in self._settings:
+            return self._settings[name]
+        raise AttributeError(f"Configuration option {name!r} is not defined")
 
     def __repr__(self) -> str:
-        return f"GameConfig({self._data})"
-
-    def export(self) -> str:
-        return json.dumps(self._data, indent=2)
-
-config = ConfigLoader()
+        merged = {**self._settings, **self._user_overrides}
+        return f"PerformanceConfig({merged!r})"
