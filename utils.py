@@ -1,39 +1,38 @@
+import logging
 import functools
-import collections
-import gc
+from typing import Callable, Any
 
-class PerformanceCache:
-    def __init__(self, capacity=128):
-        self.capacity = capacity
-        self.cache = collections.OrderedDict()
+logger = logging.getLogger('game-performance-70')
 
-    def __call__(self, func):
+class PerformanceBoundaryError(Exception):
+    """Raised when game metrics drift into unplayable zones."""
+    pass
+
+def robust_execution(default_value: Any = None):
+    """Decorator to swallow engine-breaking edge cases with grace."""
+    def decorator(func: Callable):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            key = (args, tuple(sorted(kwargs.items())))
-            if key in self.cache:
-                self.cache.move_to_end(key)
-                return self.cache[key]
-            result = func(*args, **kwargs)
-            self.cache[key] = result
-            if len(self.cache) > self.capacity:
-                self.cache.popitem(last=False)
-            return result
+            try:
+                return func(*args, **kwargs)
+            except (ZeroDivisionError, TypeError, ValueError) as e:
+                logger.error(f'Edge case detected in {func.__name__}: {e}')
+                return default_value
+            except Exception as e:
+                logger.critical(f'Critical system rupture: {e}')
+                raise PerformanceBoundaryError(f'Engine state corrupted in {func.__name__}') from e
         return wrapper
+    return decorator
 
-@PerformanceCache(capacity=256)
-def compute_frame_transform(matrix, offset):
-    return [m + offset for m in matrix]
+@robust_execution(default_value=0.0)
+def calculate_fps(frame_time_ms: float) -> float:
+    """Calculate frames per second with division safety."""
+    if frame_time_ms <= 0:
+        raise ValueError('Frame time must be positive')
+    return 1000.0 / frame_time_ms
 
-def memory_pressure_cleanup():
-    gc.collect()
-    gc.set_threshold(700, 10, 5)
-
-def fast_array_sum(data):
-    # Using memoryview for slice performance
-    mv = memoryview(bytearray(data))
-    return sum(mv)
-
-# Dynamic optimization hook
-if __name__ == '__main__':
-    memory_pressure_cleanup()
+def validate_resource_bounds(value: float, min_val: float = 0.0, max_val: float = 1.0) -> float:
+    """Clamp values to maintain stable game simulation states."""
+    if not isinstance(value, (int, float)):
+        return min_val
+    return max(min_val, min(value, max_val))
