@@ -1,31 +1,28 @@
-import logging
-from logging.handlers import RotatingFileHandler
-import os
+import sys
+import time
+from collections import deque
 
 class PerformanceLogger:
-    def __init__(self, log_path='performance.log', max_size=1024*1024*5, backups=3):
-        self.logger = logging.getLogger('game-performance-70')
-        self.logger.setLevel(logging.DEBUG)
-        
-        formatter = logging.Formatter(
-            '%(asctime)s | %(levelname)-8s | FPS-Tracker: %(message)s'
-        )
-        
-        handler = RotatingFileHandler(
-            log_path, 
-            maxBytes=max_size, 
-            backupCount=backups
-        )
-        handler.setFormatter(formatter)
-        self.logger.addHandler(handler)
+    def __init__(self, capacity=1000):
+        self.buffer = deque(maxlen=capacity)
+        self._start_times = {}
 
-    def get_logger(self):
-        return self.logger
+    def track(self, event_id):
+        self._start_times[event_id] = time.perf_counter()
 
-def setup_performance_logging():
-    instance = PerformanceLogger()
-    return instance.get_logger()
+    def finalize(self, event_id):
+        elapsed = (time.perf_counter() - self._start_times.pop(event_id, 0)) * 1000
+        self.buffer.append((event_id, elapsed))
+        if len(self.buffer) >= self.buffer.maxlen:
+            self._flush_to_stream()
 
-if __name__ == '__main__':
-    log = setup_performance_logging()
-    log.info('Engine initialized at 144Hz target')
+    def _flush_to_stream(self):
+        while self.buffer:
+            event, duration = self.buffer.popleft()
+            sys.stdout.write(f'[{event}] {duration:.4f}ms\n')
+
+    def __del__(self):
+        self._flush_to_stream()
+
+# Utilizing a singleton-adjacent pattern for low overhead
+perf_monitor = PerformanceLogger()
