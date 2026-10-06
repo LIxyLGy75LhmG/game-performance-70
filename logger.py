@@ -1,28 +1,34 @@
 import sys
 import time
-from collections import deque
+import inspect
+from datetime import datetime
 
-class PerformanceLogger:
-    def __init__(self, capacity=1000):
-        self.buffer = deque(maxlen=capacity)
-        self._start_times = {}
+class GameLogger:
+    COLORS = {'DEBUG': '\033[94m', 'INFO': '\033[92m', 'WARN': '\033[93m', 'ERROR': '\033[91m', 'END': '\033[0m'}
 
-    def track(self, event_id):
-        self._start_times[event_id] = time.perf_counter()
+    @staticmethod
+    def _log(level, message):
+        frame = inspect.stack()[2]
+        caller = f"{frame.filename.split('/')[-1]}:{frame.lineno}"
+        timestamp = datetime.now().strftime('%H:%M:%S.%f')[:-3]
+        color = GameLogger.COLORS.get(level, '')
+        output = f"{timestamp} [{level:^5}] {caller} | {message}"
+        sys.stdout.write(f"{color}{output}{GameLogger.COLORS['END']}\n")
 
-    def finalize(self, event_id):
-        elapsed = (time.perf_counter() - self._start_times.pop(event_id, 0)) * 1000
-        self.buffer.append((event_id, elapsed))
-        if len(self.buffer) >= self.buffer.maxlen:
-            self._flush_to_stream()
+    @classmethod
+    def debug(cls, msg): cls._log('DEBUG', msg)
+    @classmethod
+    def info(cls, msg): cls._log('INFO', msg)
+    @classmethod
+    def warn(cls, msg): cls._log('WARN', msg)
+    @classmethod
+    def error(cls, msg): cls._log('ERROR', msg)
 
-    def _flush_to_stream(self):
-        while self.buffer:
-            event, duration = self.buffer.popleft()
-            sys.stdout.write(f'[{event}] {duration:.4f}ms\n')
-
-    def __del__(self):
-        self._flush_to_stream()
-
-# Utilizing a singleton-adjacent pattern for low overhead
-perf_monitor = PerformanceLogger()
+def performance_monitor(func):
+    def wrapper(*args, **kwargs):
+        start = time.perf_counter()
+        result = func(*args, **kwargs)
+        elapsed = (time.perf_counter() - start) * 1000
+        GameLogger.info(f"call '{func.__name__}' took {elapsed:.2f}ms")
+        return result
+    return wrapper
