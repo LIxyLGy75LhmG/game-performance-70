@@ -1,38 +1,41 @@
-import gc
 import time
-import logging
-from typing import Any, Callable
+import functools
+import collections
 
-logger = logging.getLogger('game-performance-70')
-
-class PerformanceManager:
-    """Context manager for resource cleanup during game cycles."""
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.purge_unused_assets()
-
-    @staticmethod
-    def purge_unused_assets() -> None:
-        start = time.perf_counter()
-        gc.collect()
-        duration = time.perf_counter() - start
-        logger.debug(f"garbage collection finished in {duration:.4f}s")
-
-def throttle_calls(seconds: float = 0.1):
-    """Decorator to prevent function spamming in the main loop."""
-    def decorator(func: Callable):
-        last_call = 0.0
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
-            nonlocal last_call
-            now = time.time()
-            if now - last_call > seconds:
-                last_call = now
+def throttle(interval):
+    def decorator(func):
+        last_called = [0.0]
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            now = time.perf_counter()
+            if now - last_called[0] >= interval:
+                last_called[0] = now
                 return func(*args, **kwargs)
         return wrapper
     return decorator
 
-def sanitize_frame_delta(delta: float, cap: float = 0.5) -> float:
-    """Ensures frame updates never exceed the cap."""
-    return min(float(delta), cap)
+def memoize_lru(maxsize=128):
+    return functools.lru_cache(maxsize=maxsize)
+
+def frame_delta_calculator():
+    history = collections.deque(maxlen=60)
+    def get_delta():
+        now = time.perf_counter()
+        history.append(now)
+        if len(history) < 2: return 0.0
+        return (history[-1] - history[0]) / (len(history) - 1)
+    return get_delta
+
+def profile_execution(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        start = time.perf_counter()
+        result = func(*args, **kwargs)
+        duration = time.perf_counter() - start
+        print(f'[PERF] {func.__name__} took {duration:.6f}s')
+        return result
+    return wrapper
+
+def chunk_iterable(data, size):
+    for i in range(0, len(data), size):
+        yield data[i:i + size]
