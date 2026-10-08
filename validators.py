@@ -1,31 +1,33 @@
 import functools
-from typing import Any, Callable, Dict
+import logging
 
-class PerformanceGuard:
-    """Enforces strict latency constraints on high-frequency gaming telemetry."""
-    def __init__(self, ms_threshold: float = 16.67):
-        self.ms_threshold = ms_threshold
+logger = logging.getLogger('game-performance-70')
 
-    def __call__(self, func: Callable):
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            import time
-            start = time.perf_counter()
+class PerformanceValidationError(Exception):
+    """Custom exception for anomalous gaming metrics."""
+    pass
+
+def validate_telemetry(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        try:
             result = func(*args, **kwargs)
-            elapsed = (time.perf_counter() - start) * 1000
-            if elapsed > self.ms_threshold:
-                print(f"[PERF] {func.__name__} spiked to {elapsed:.2f}ms")
+            if result is None:
+                raise PerformanceValidationError('Empty frame data detected')
+            if not isinstance(result, (int, float)):
+                raise PerformanceValidationError('Non-numeric performance metric')
+            if result < 0:
+                raise PerformanceValidationError('Negative frame timing anomaly')
             return result
-        return wrapper
+        except Exception as e:
+            logger.error(f'Edge case failure in {func.__name__}: {e}')
+            return 0.0
+    return wrapper
 
-def validate_game_state(data: Dict[str, Any]) -> bool:
-    """Checks packet structure for competitive integrity."""
-    required = {'player_id', 'pos_x', 'pos_y', 'timestamp'}
-    return all(key in data for key in required) and isinstance(data['pos_x'], (int, float))
+@validate_telemetry
+def calculate_frame_time(ms_delta):
+    return float(ms_delta)
 
-def sanitize_input(val: Any) -> float:
-    """Forces numeric bounds for coordinate packets."""
-    try:
-        return float(max(min(val, 9999.0), -9999.0))
-    except (ValueError, TypeError):
-        return 0.0
+@validate_telemetry
+def parse_fps_cap(val):
+    return int(val) if val else None
