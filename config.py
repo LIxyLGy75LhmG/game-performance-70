@@ -1,31 +1,40 @@
+import json
 import os
-from dataclasses import dataclass
-from typing import Dict, Any
+from typing import Any, Dict
 
-@dataclass(frozen=True)
-class PerformanceThresholds:
-    fps_min: int = 60
-    frame_time_max_ms: float = 16.6
-    memory_limit_mb: int = 4096
+class ConfigLoader:
+    def __init__(self, defaults: Dict[str, Any], path: str = 'settings.json'):
+        self.path = path
+        self.data = defaults
+        self._load_from_disk()
 
-class GameConfig:
-    def __init__(self):
-        self.settings = {
-            "debug_mode": os.getenv("GAME_DEBUG", "False").lower() == "true",
-            "target_refresh_rate": int(os.getenv("TARGET_FPS", "144")),
-            "caching_enabled": True
-        }
-        self.limits = PerformanceThresholds()
+    def _load_from_disk(self) -> None:
+        if os.path.exists(self.path):
+            try:
+                with open(self.path, 'r') as f:
+                    loaded = json.load(f)
+                    self.data.update(loaded)
+            except (json.JSONDecodeError, IOError):
+                pass
 
-    def get_tier(self) -> str:
-        if self.settings["target_refresh_rate"] >= 144:
-            return "ultra_performance"
-        return "balanced_load"
+    def get(self, key: str, fallback: Any = None) -> Any:
+        return self.data.get(key, fallback)
 
-    def __repr__(self):
-        return f"<Config(tier={self.get_tier()}, debug={self.settings['debug_mode']})>"
+    def __getitem__(self, key: str) -> Any:
+        return self.data[key]
 
-def load_game_environment() -> GameConfig:
-    return GameConfig()
+    def save(self) -> None:
+        with open(self.path, 'w') as f:
+            json.dump(self.data, f, indent=4)
 
-GLOBAL_CONFIG = load_game_environment()
+    def __repr__(self) -> str:
+        return f"<ConfigLoader loaded_keys={list(self.data.keys())}>"
+
+# Usage example for performance-70 tweaks
+DEFAULT_SETTINGS = {
+    "fps_cap": 144,
+    "vsync": False,
+    "render_scale": 1.0
+}
+
+settings = ConfigLoader(DEFAULT_SETTINGS)
