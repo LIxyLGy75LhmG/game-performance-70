@@ -1,41 +1,34 @@
 import time
 import functools
-import collections
+from typing import Callable, Any, Dict
 
-def throttle(interval):
-    def decorator(func):
-        last_called = [0.0]
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            now = time.perf_counter()
-            if now - last_called[0] >= interval:
-                last_called[0] = now
-                return func(*args, **kwargs)
-        return wrapper
-    return decorator
+class PerformanceMetrics:
+    def __init__(self):
+        self.telemetry = {}
 
-def memoize_lru(maxsize=128):
-    return functools.lru_cache(maxsize=maxsize)
+    def record(self, func_name: str, duration: float):
+        self.telemetry[func_name] = self.telemetry.get(func_name, []) + [duration]
 
-def frame_delta_calculator():
-    history = collections.deque(maxlen=60)
-    def get_delta():
-        now = time.perf_counter()
-        history.append(now)
-        if len(history) < 2: return 0.0
-        return (history[-1] - history[0]) / (len(history) - 1)
-    return get_delta
+    def average_latency(self, func_name: str) -> float:
+        data = self.telemetry.get(func_name, [0])
+        return sum(data) / len(data)
 
-def profile_execution(func):
+metrics_engine = PerformanceMetrics()
+
+def benchmark_frame_op(func: Callable):
     @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        start = time.perf_counter()
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
+        start_time = time.perf_counter()
         result = func(*args, **kwargs)
-        duration = time.perf_counter() - start
-        print(f'[PERF] {func.__name__} took {duration:.6f}s')
+        metrics_engine.record(func.__name__, time.perf_counter() - start_time)
         return result
     return wrapper
 
-def chunk_iterable(data, size):
-    for i in range(0, len(data), size):
-        yield data[i:i + size]
+def pack_entity_data(entity_id: int, state: Dict[str, Any]) -> bytes:
+    header = entity_id.to_bytes(4, byteorder='big')
+    payload = str(state).encode('utf-8')
+    return header + b'|' + payload
+
+def unpack_entity_data(raw_data: bytes) -> Dict[str, Any]:
+    _, payload = raw_data.split(b'|', 1)
+    return eval(payload.decode('utf-8'))
