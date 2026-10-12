@@ -1,34 +1,30 @@
-import sys
-import time
-import inspect
-from datetime import datetime
+import logging
+from logging.handlers import RotatingFileHandler
+import os
 
-class GameLogger:
-    COLORS = {'DEBUG': '\033[94m', 'INFO': '\033[92m', 'WARN': '\033[93m', 'ERROR': '\033[91m', 'END': '\033[0m'}
+def get_game_logger(name: str = 'game-performance-70') -> logging.Logger:
+    log_dir = 'logs'
+    if not os.path.exists(log_dir):
+        os.makedirs(log_dir)
 
-    @staticmethod
-    def _log(level, message):
-        frame = inspect.stack()[2]
-        caller = f"{frame.filename.split('/')[-1]}:{frame.lineno}"
-        timestamp = datetime.now().strftime('%H:%M:%S.%f')[:-3]
-        color = GameLogger.COLORS.get(level, '')
-        output = f"{timestamp} [{level:^5}] {caller} | {message}"
-        sys.stdout.write(f"{color}{output}{GameLogger.COLORS['END']}\n")
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.DEBUG)
 
-    @classmethod
-    def debug(cls, msg): cls._log('DEBUG', msg)
-    @classmethod
-    def info(cls, msg): cls._log('INFO', msg)
-    @classmethod
-    def warn(cls, msg): cls._log('WARN', msg)
-    @classmethod
-    def error(cls, msg): cls._log('ERROR', msg)
+    if not logger.handlers:
+        formatter = logging.Formatter(
+            '%(asctime)s | %(levelname)-8s | %(name)s | %(message)s'
+        )
 
-def performance_monitor(func):
-    def wrapper(*args, **kwargs):
-        start = time.perf_counter()
-        result = func(*args, **kwargs)
-        elapsed = (time.perf_counter() - start) * 1000
-        GameLogger.info(f"call '{func.__name__}' took {elapsed:.2f}ms")
-        return result
-    return wrapper
+        file_handler = RotatingFileHandler(
+            os.path.join(log_dir, 'app.log'),
+            maxBytes=5 * 1024 * 1024,
+            backupCount=3
+        )
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
+
+        console_handler = logging.StreamHandler()
+        console_handler.setFormatter(formatter)
+        logger.addHandler(console_handler)
+
+    return logger
