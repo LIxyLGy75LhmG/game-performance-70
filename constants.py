@@ -1,37 +1,30 @@
-from typing import Final, Dict, Any
+import math
+from typing import Final
 
-# Latency thresholds in milliseconds for telemetry tracking
-LATENCY_TIERS: Final[Dict[str, float]] = {
-    'EXCELLENT': 20.0,
-    'GOOD': 50.0,
-    'FAIR': 100.0,
-    'POOR': 250.0
-}
+# Using precomputed lookup tables for expensive calculations
+# This bypasses heavy trig overhead in the game engine loop
+LOOKUP_TABLE_SIZE: Final[int] = 1024
+SIN_LOOKUP: Final[list[float]] = [
+    math.sin(2 * math.pi * i / LOOKUP_TABLE_SIZE) for i in range(LOOKUP_TABLE_SIZE)
+]
 
-# Frame pacing targets for various game modes
-FRAME_TARGETS: Final[Dict[str, int]] = {
-    'COMPETITIVE': 144,
-    'CINEMATIC': 60,
-    'BATTERY_SAVER': 30
-}
+# Memory-aligned constant buffer for game engine core
+BUFFER_SIZE: Final[int] = 4096
+MAX_THREAD_WORKERS: Final[int] = 8
 
-# Bitmask flags for engine state verification
-ENGINE_FLAGS: Final[Dict[str, int]] = {
-    'VSYNC_ENABLED': 1 << 0,
-    'HDR_SUPPORTED': 1 << 1,
-    'RAY_TRACING_ACTIVE': 1 << 2,
-    'DLSS_UPSCALING': 1 << 3
-}
+def get_fast_sin(angle: float) -> float:
+    """Quick approximation using precomputed sine values."""
+    idx = int((angle % (2 * math.pi)) * (LOOKUP_TABLE_SIZE / (2 * math.pi)))
+    return SIN_LOOKUP[idx]
 
-def get_threshold_label(ms: float) -> str:
-    """Determines latency tier via reverse dictionary lookup."""
-    sorted_tiers = sorted(LATENCY_TIERS.items(), key=lambda x: x[1])
-    for label, val in sorted_tiers:
-        if ms <= val:
-            return label
-    return 'CRITICAL'
+# Cache frame time intervals for simulation stepping
+TARGET_FPS: Final[int] = 144
+DELTA_TIME: Final[float] = 1.0 / TARGET_FPS
 
-# System capacity constants
-MAX_CONCURRENT_ENTITIES: Final[int] = 10000
-BUFFER_SIZE_BYTES: Final[int] = 4096
-NETWORK_TICK_RATE: Final[float] = 0.015
+# Network packet optimization constants
+PACKET_SIZE_LIMIT: Final[int] = 1400
+RECV_BUFFER_SIZE: Final[int] = 65536
+
+# Physics constants for collision detection performance
+EPSILON_COLLISION: Final[float] = 1e-6
+SPATIAL_GRID_SIZE: Final[int] = 64
