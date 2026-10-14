@@ -1,35 +1,40 @@
 import time
 import functools
-import logging
+from collections import deque
 
-logger = logging.getLogger('game-performance-70')
+class FrameBuffer:
+    def __init__(self, size=60):
+        self.data = deque(maxlen=size)
 
-def retry_operation(max_attempts=3, backoff=0.5):
+    def record(self, delta_time):
+        self.data.append(delta_time)
+
+    @property
+    def average_fps(self):
+        if not self.data:
+            return 0.0
+        avg = sum(self.data) / len(self.data)
+        return 1.0 / avg if avg > 0 else 0.0
+
+def throttle_input(interval_ms):
     def decorator(func):
+        last_called = [0.0]
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            last_exception = None
-            for attempt in range(1, max_attempts + 1):
-                try:
-                    return func(*args, **kwargs)
-                except Exception as e:
-                    last_exception = e
-                    wait_time = backoff * (2 ** (attempt - 1))
-                    logger.warning(f'Attempt {attempt} failed: {e}. Retrying in {wait_time}s...')
-                    time.sleep(wait_time)
-            logger.error(f'Operation failed after {max_attempts} attempts')
-            raise last_exception
+            now = time.perf_counter()
+            if (now - last_called[0]) * 1000 >= interval_ms:
+                last_called[0] = now
+                return func(*args, **kwargs)
         return wrapper
     return decorator
 
-class NetworkState:
-    def __init__(self):
-        self.latency_buffer = []
+def normalize_vector(vec):
+    magnitude = sum(x**2 for x in vec)**0.5
+    return tuple(x / magnitude for x in vec) if magnitude > 0 else vec
 
-    @retry_operation(max_attempts=4, backoff=1.0)
-    def fetch_server_ping(self, endpoint):
-        # Simulation of jittery network hardware interaction
-        import random
-        if random.random() < 0.7:
-            raise ConnectionError('Packet loss detected')
-        return {'status': 'ok', 'latency': random.randint(10, 50)}
+def batch_process_entities(entities, callback, batch_size=100):
+    for i in range(0, len(entities), batch_size):
+        batch = entities[i:i + batch_size]
+        for entity in batch:
+            callback(entity)
+        time.sleep(0.001)
