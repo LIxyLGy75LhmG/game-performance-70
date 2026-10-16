@@ -1,40 +1,47 @@
-import time
 import functools
-from collections import deque
+import random
+import time
+from typing import Any, Callable, Tuple, Type
 
-class FrameBuffer:
-    def __init__(self, size=60):
-        self.data = deque(maxlen=size)
 
-    def record(self, delta_time):
-        self.data.append(delta_time)
+class NetworkSyncError(Exception):
+    """Raised when game state or telemetry payload fails to synchronize."""
+    pass
 
-    @property
-    def average_fps(self):
-        if not self.data:
-            return 0.0
-        avg = sum(self.data) / len(self.data)
-        return 1.0 / avg if avg > 0 else 0.0
 
-def throttle_input(interval_ms):
-    def decorator(func):
-        last_called = [0.0]
+def frame_budget_backoff(max_retries: int = 4, base_frame_ms: float = 0.016):
+    """Yields retry delays scaled around target frame rates (e.g. 16ms for 60 FPS)."""
+    for attempt in range(max_retries):
+        multiplier = 2 ** attempt
+        jitter = random.uniform(0.75, 1.25)
+        yield base_frame_ms * multiplier * jitter
+
+
+def retry_network_dispatch(
+    max_retries: int = 4,
+    catch_exceptions: Tuple[Type[Exception], ...] = (ConnectionError, TimeoutError)
+) -> Callable:
+    """Decorator wrapping unreliable network payloads with frame-paced exponential retries."""
+    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            now = time.perf_counter()
-            if (now - last_called[0]) * 1000 >= interval_ms:
-                last_called[0] = now
-                return func(*args, **kwargs)
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            delays = frame_budget_backoff(max_retries=max_retries)
+            for attempt_idx, delay in enumerate(delays, start=1):
+                try:
+                    return func(*args, **kwargs)
+                except catch_exceptions as error:
+                    if attempt_idx == max_retries:
+                        raise NetworkSyncError(
+                            f"Network operation '{func.__name__}' failed after {max_retries} attempts."
+                        ) from error
+                    time.sleep(delay)
         return wrapper
     return decorator
 
-def normalize_vector(vec):
-    magnitude = sum(x**2 for x in vec)**0.5
-    return tuple(x / magnitude for x in vec) if magnitude > 0 else vec
 
-def batch_process_entities(entities, callback, batch_size=100):
-    for i in range(0, len(entities), batch_size):
-        batch = entities[i:i + batch_size]
-        for entity in batch:
-            callback(entity)
-        time.sleep(0.001)
+@retry_network_dispatch(max_retries=3)
+def transmit_telemetry_packet(packet_id: int, payload: dict) -> bool:
+    """Simulates sending performance telemetry data to game server."""
+    if random.random() < 0.5:
+        raise ConnectionError(f"Packet {packet_id} transmission timed out")
+    return True
