@@ -1,27 +1,35 @@
-from typing import Optional, Dict, Any
-
 class PerformanceError(Exception):
-    """Base exception class for game-performance-70 engine faults."""
-    def __init__(self, message: str, context: Optional[Dict[str, Any]] = None) -> None:
-        self.context: Dict[str, Any] = context or {}
-        super().__init__(f"{message} | Context: {self.context}")
+    """Base exception for the game performance engine."""
 
-class FrameDropWarning(PerformanceError):
-    """Raised when frame delivery timings exceed budget threshold."""
-    def __init__(self, fps: float, threshold: float) -> None:
-        super().__init__("Critical frame drop detected", {"fps": fps, "threshold": threshold})
+class ResourceThrottleError(PerformanceError):
+    """Raised when frame time budget is exceeded."""
 
-class ResourceExhaustionError(PerformanceError):
-    """Triggered when heap allocation for assets hits limits."""
-    def __init__(self, asset_id: str, mem_usage: int) -> None:
-        super().__init__("GPU memory ceiling breached", {"asset": asset_id, "bytes": mem_usage})
+class AssetStreamingError(PerformanceError):
+    """Raised when background asset loading hangs."""
 
-class PipelineStallError(PerformanceError):
-    """Raised when the command queue fails to flush."""
-    def __init__(self, latency_ms: float) -> None:
-        super().__init__("Render pipeline sync timeout", {"ms": latency_ms})
+class HardwareThrottleError(PerformanceError):
+    """Raised when thermal or power limits are hit."""
 
-def handle_engine_fault(error: PerformanceError) -> None:
-    """Standard entry point for logging engine-level exceptions."""
-    payload: Dict[str, Any] = {"type": type(error).__name__, "data": error.context}
-    print(f"[PERF_FAIL]: {payload}")
+class PerformanceAnomaly(Exception):
+    """Raised when unexpected metric patterns emerge."""
+
+def raise_if_lag(frame_delta: float, threshold: float):
+    if frame_delta > threshold:
+        raise ResourceThrottleError(f"Frame spike detected: {frame_delta:.2f}ms")
+
+def report_anomaly(code: str, severity: int):
+    if severity > 9:
+        raise PerformanceAnomaly(f"Critical bottleneck at {code}")
+
+# Dynamic Exception Factory
+class ExceptionFactory:
+    _registry = {
+        "gpu": HardwareThrottleError,
+        "io": AssetStreamingError,
+        "cpu": ResourceThrottleError
+    }
+
+    @classmethod
+    def trigger(cls, subsystem: str, msg: str):
+        exc_cls = cls._registry.get(subsystem, PerformanceError)
+        raise exc_cls(msg)
