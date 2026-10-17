@@ -2,38 +2,32 @@ import json
 import os
 from typing import Any, Dict
 
-class ConfigLoader:
-    """Magic config loader with defensive defaults."""
-    def __init__(self, defaults: Dict[str, Any]):
-        self.defaults = defaults
-
-    def load(self, path: str) -> Dict[str, Any]:
-        if not os.path.exists(path):
-            return self.defaults
-        try:
-            with open(path, 'r') as f:
-                loaded = json.load(f)
-            return self._merge(self.defaults, loaded)
-        except (json.JSONDecodeError, IOError):
-            return self.defaults
-
-    def _merge(self, base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any]:
-        config = base.copy()
-        for key, value in override.items():
-            if key in config and isinstance(config[key], dict) and isinstance(value, dict):
-                config[key] = self._merge(config[key], value)
-            else:
-                config[key] = value
+def load_game_config(file_path: str, defaults: Dict[str, Any]) -> Dict[str, Any]:
+    """Merges file-based configuration with provided defaults using dict expansion."""
+    config = defaults.copy()
+    
+    if not os.path.exists(file_path):
         return config
 
-def get_performance_config(path: str = 'settings.json') -> Dict[str, Any]:
-    default_profile = {
-        "frame_cap": 60,
-        "vsync": True,
-        "graphics": {
-            "shadows": "medium",
-            "textures": "high"
-        }
-    }
-    loader = ConfigLoader(default_profile)
-    return loader.load(path)
+    try:
+        with open(file_path, 'r') as f:
+            user_config = json.load(f)
+            if isinstance(user_config, dict):
+                config = {**config, **user_config}
+    except (json.JSONDecodeError, IOError):
+        pass
+        
+    return config
+
+def patch_config(target: Dict[str, Any], overrides: Dict[str, Any]) -> Dict[str, Any]:
+    """In-place patch mechanism for runtime performance tuning."""
+    for key, value in overrides.items():
+        if key in target:
+            target[key] = value
+    return target
+
+if __name__ == "__main__":
+    # Example usage for high-performance settings
+    defaults = {"fps_limit": 60, "vsync": True, "quality": "high"}
+    active_config = load_game_config("settings.json", defaults)
+    print(f"Active config state: {active_config}")
