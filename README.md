@@ -1,40 +1,52 @@
 # game-performance-70
 
-`game-performance-70` is a Python-based diagnostic toolkit designed to analyze and stabilize frame rates in PC gaming environments. By monitoring hardware utilization in real-time, the tool identifies resource bottlenecks that cause stuttering or input lag.
+`game-performance-70` is a high-precision Python utility designed to monitor, log, and analyze frame-time consistency and resource overhead in real-time gaming environments. It provides developers with actionable telemetry to identify bottlenecks and optimize engine performance across varied hardware configurations.
 
 ## Features
 
-*   **Real-time Telemetry:** Tracks CPU/GPU utilization, VRAM usage, and frame-time consistency with high-resolution sampling.
-*   **Bottleneck Detection:** Automatically flags thermal throttling, process priority conflicts, or memory leaks impacting active game processes.
-*   **Performance Profiles:** Generate and save optimized system configuration reports to replicate stable settings across different game titles.
-*   **Low-Overhead Logging:** Operates with minimal background impact, ensuring your gameplay experience remains unaffected by the diagnostic process.
+*   **Frame-Time Analysis:** Captures millisecond-level interval data to detect stutter and micro-stutter patterns.
+*   **Resource Profiling:** Tracks real-time CPU and GPU usage metrics to correlate performance dips with system spikes.
+*   **CSV Export Engine:** Generates structured logs suitable for integration with external analysis tools like Excel, Grafana, or Tableau.
+*   **Threshold Alerts:** Configurable triggers to log deep system snapshots whenever frame rates drop below user-defined benchmarks.
 
 ## Installation
 
-Ensure you have Python 3.9+ installed. Clone the repository and install the required dependencies:
+Ensure you have Python 3.8+ installed. Install the package directly via pip:
+
+```bash
+pip install game-performance-70
+```
+
+To install from source for local development:
 
 ```bash
 git clone https://github.com/Developer/game-performance-70.git
 cd game-performance-70
 pip install -r requirements.txt
+python setup.py install
 ```
 
-## Usage
+## Basic Usage
 
-To start a performance capture session, run the main diagnostic script with administrator privileges to ensure access to hardware sensors:
+Import the performance collector and initialize the monitor to begin tracking your application's frame data.
 
-```bash
-sudo python main.py --target "GameName.exe" --duration 300
+```python
+from game_perf import PerformanceMonitor
+
+# Initialize monitor with a 60 FPS target threshold
+monitor = PerformanceMonitor(target_fps=60, log_file="performance_log.csv")
+
+# Start data capture
+monitor.start()
+
+# Execute your game loop
+try:
+    while True:
+        monitor.tick()
+except KeyboardInterrupt:
+    monitor.stop()
+    print("Performance log saved successfully.")
 ```
-
-This will log data for 300 seconds and output a `performance_report.csv` file in the `/logs` directory. You can visualize the data using the integrated analysis module:
-
-```bash
-python analyzer.py --file ./logs/performance_report.csv --plot
-```
-
-## Contributing
-We welcome pull requests for new hardware driver support and improved analysis algorithms. Please ensure all code passes `flake8` linting before submission.
 
 ## License
 
