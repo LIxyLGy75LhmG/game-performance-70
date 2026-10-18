@@ -1,40 +1,41 @@
-import json
 import os
+import json
 from typing import Any, Dict
 
 class ConfigLoader:
     def __init__(self, defaults: Dict[str, Any], path: str = 'settings.json'):
         self.path = path
-        self.data = defaults
-        self._load_from_disk()
+        self._data = defaults.copy()
+        self._load()
 
-    def _load_from_disk(self) -> None:
+    def _load(self) -> None:
         if os.path.exists(self.path):
-            try:
-                with open(self.path, 'r') as f:
-                    loaded = json.load(f)
-                    self.data.update(loaded)
-            except (json.JSONDecodeError, IOError):
-                pass
+            with open(self.path, 'r') as f:
+                try:
+                    user_cfg = json.load(f)
+                    self._data.update({k: v for k, v in user_cfg.items() if k in self._data})
+                except json.JSONDecodeError:
+                    pass
 
-    def get(self, key: str, fallback: Any = None) -> Any:
-        return self.data.get(key, fallback)
+    def __getattr__(self, name: str) -> Any:
+        if name in self._data:
+            return self._data[name]
+        raise AttributeError(f'Config has no attribute {name}')
 
     def __getitem__(self, key: str) -> Any:
-        return self.data[key]
+        return self._data[key]
 
-    def save(self) -> None:
-        with open(self.path, 'w') as f:
-            json.dump(self.data, f, indent=4)
+    def get(self, key: str, default: Any = None) -> Any:
+        return self._data.get(key, default)
 
     def __repr__(self) -> str:
-        return f"<ConfigLoader loaded_keys={list(self.data.keys())}>"
+        return f'<GameConfig {list(self._data.keys())}>'
 
-# Usage example for performance-70 tweaks
-DEFAULT_SETTINGS = {
-    "fps_cap": 144,
-    "vsync": False,
-    "render_scale": 1.0
-}
-
-settings = ConfigLoader(DEFAULT_SETTINGS)
+def get_config():
+    defaults = {
+        'fps_cap': 144,
+        'vsync': True,
+        'resolution': [1920, 1080],
+        'gpu_accelerated': True
+    }
+    return ConfigLoader(defaults)
