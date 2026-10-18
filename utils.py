@@ -1,47 +1,49 @@
-import functools
-import random
 import time
-from typing import Any, Callable, Tuple, Type
+import random
+from functools import wraps
+from typing import Callable, Any, Tuple
 
 
-class NetworkSyncError(Exception):
-    """Raised when game state or telemetry payload fails to synchronize."""
+class NetworkGlitchError(Exception):
+    """Raised when game frame network sync fails."""
     pass
 
 
-def frame_budget_backoff(max_retries: int = 4, base_frame_ms: float = 0.016):
-    """Yields retry delays scaled around target frame rates (e.g. 16ms for 60 FPS)."""
-    for attempt in range(max_retries):
-        multiplier = 2 ** attempt
-        jitter = random.uniform(0.75, 1.25)
-        yield base_frame_ms * multiplier * jitter
+def _calculate_jitter_delay(attempt: int, base_delay: float, max_delay: float) -> float:
+    """Calculate exponential backoff with pseudo frame-tick jitter."""
+    raw_delay = base_delay * (2 ** (attempt - 1))
+    jitter = random.uniform(0.85, 1.25)
+    return min(raw_delay * jitter, max_delay)
 
 
-def retry_network_dispatch(
-    max_retries: int = 4,
-    catch_exceptions: Tuple[Type[Exception], ...] = (ConnectionError, TimeoutError)
+def retry_net_op(
+    exceptions: Tuple[type[Exception], ...] = (ConnectionError, TimeoutError, NetworkGlitchError),
+    max_attempts: int = 4,
+    base_delay: float = 0.05,
+    max_delay: float = 1.0
 ) -> Callable:
-    """Decorator wrapping unreliable network payloads with frame-paced exponential retries."""
-    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
-        @functools.wraps(func)
+    """Decorator providing backoff retries for game network packets."""
+    def decorator(func: Callable) -> Callable:
+        @wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
-            delays = frame_budget_backoff(max_retries=max_retries)
-            for attempt_idx, delay in enumerate(delays, start=1):
+            last_error = None
+            for attempt in range(1, max_attempts + 1):
                 try:
                     return func(*args, **kwargs)
-                except catch_exceptions as error:
-                    if attempt_idx == max_retries:
-                        raise NetworkSyncError(
-                            f"Network operation '{func.__name__}' failed after {max_retries} attempts."
-                        ) from error
-                    time.sleep(delay)
+                except exceptions as exc:
+                    last_error = exc
+                    if attempt < max_attempts:
+                        delay = _calculate_jitter_delay(attempt, base_delay, max_delay)
+                        time.sleep(delay)
+            if last_error:
+                raise last_error
         return wrapper
     return decorator
 
 
-@retry_network_dispatch(max_retries=3)
-def transmit_telemetry_packet(packet_id: int, payload: dict) -> bool:
-    """Simulates sending performance telemetry data to game server."""
-    if random.random() < 0.5:
-        raise ConnectionError(f"Packet {packet_id} transmission timed out")
+@retry_net_op(max_attempts=3, base_delay=0.02)
+def sync_player_frame(frame_id: int, packet_data: dict) -> bool:
+    """Simulate network transmission for game state sync."""
+    if random.random() < 0.4:
+        raise NetworkGlitchError(f"Frame {frame_id} lost in transit")
     return True
