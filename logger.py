@@ -1,30 +1,28 @@
 import logging
 from logging.handlers import RotatingFileHandler
-import os
+import sys
 
-def get_game_logger(name: str = 'game-performance-70') -> logging.Logger:
-    log_dir = 'logs'
-    if not os.path.exists(log_dir):
-        os.makedirs(log_dir)
-
+def setup_game_logger(name: str = 'performance_monitor', log_file: str = 'game.log'):
     logger = logging.getLogger(name)
     logger.setLevel(logging.DEBUG)
 
-    if not logger.handlers:
-        formatter = logging.Formatter(
-            '%(asctime)s | %(levelname)-8s | %(name)s | %(message)s'
-        )
+    formatter = logging.Formatter(
+        '[%(asctime)s] | %(levelname)8s | %(name)s | %(message)s',
+        datefmt='%H:%M:%S'
+    )
 
-        file_handler = RotatingFileHandler(
-            os.path.join(log_dir, 'app.log'),
-            maxBytes=5 * 1024 * 1024,
-            backupCount=3
-        )
-        file_handler.setFormatter(formatter)
-        logger.addHandler(file_handler)
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setFormatter(formatter)
+    logger.addHandler(console_handler)
 
-        console_handler = logging.StreamHandler()
-        console_handler.setFormatter(formatter)
-        logger.addHandler(console_handler)
+    file_handler = RotatingFileHandler(
+        log_file, 
+        maxBytes=1024 * 1024 * 5, 
+        backupCount=3
+    )
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
 
     return logger
+
+log = setup_game_logger()
