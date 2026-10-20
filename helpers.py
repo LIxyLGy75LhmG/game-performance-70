@@ -1,33 +1,30 @@
-import json
-import os
-from typing import Any, Dict
+import time
+import functools
+import logging
+from typing import Callable, Any
 
-def load_game_config(file_path: str, defaults: Dict[str, Any]) -> Dict[str, Any]:
-    """Merges file-based configuration with provided defaults using dict expansion."""
-    config = defaults.copy()
-    
-    if not os.path.exists(file_path):
-        return config
+logger = logging.getLogger('game-performance-70')
 
-    try:
-        with open(file_path, 'r') as f:
-            user_config = json.load(f)
-            if isinstance(user_config, dict):
-                config = {**config, **user_config}
-    except (json.JSONDecodeError, IOError):
-        pass
-        
-    return config
+def retry_network_call(max_attempts: int = 3, delay: float = 1.0, backoff: float = 2.0):
+    def decorator(func: Callable):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs) -> Any:
+            attempts = 0
+            current_delay = delay
+            while attempts < max_attempts:
+                try:
+                    return func(*args, **kwargs)
+                except (ConnectionError, TimeoutError) as e:
+                    attempts += 1
+                    if attempts >= max_attempts:
+                        logger.error(f'failed after {attempts} attempts: {e}')
+                        raise
+                    time.sleep(current_delay)
+                    current_delay *= backoff
+            return None
+        return wrapper
+    return decorator
 
-def patch_config(target: Dict[str, Any], overrides: Dict[str, Any]) -> Dict[str, Any]:
-    """In-place patch mechanism for runtime performance tuning."""
-    for key, value in overrides.items():
-        if key in target:
-            target[key] = value
-    return target
-
-if __name__ == "__main__":
-    # Example usage for high-performance settings
-    defaults = {"fps_limit": 60, "vsync": True, "quality": "high"}
-    active_config = load_game_config("settings.json", defaults)
-    print(f"Active config state: {active_config}")
+# usage for jittery game connections
+def robust_fetch(func):
+    return retry_network_call(max_attempts=5, delay=0.5)(func)
