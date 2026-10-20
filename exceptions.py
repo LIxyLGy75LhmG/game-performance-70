@@ -1,42 +1,35 @@
-class GamePerformanceError(Exception):
-    """Base exception for the game-performance-70 engine."""
+class PerformanceError(Exception):
+    """Base exception for all game performance bottlenecks."""
+    pass
 
-class ResourceThrottleError(GamePerformanceError):
-    """Raised when frame time budget is exceeded."""
+class FrameDropWarning(PerformanceError):
+    """Raised when frame time exceeds threshold."""
+    def __init__(self, latency: float, threshold: float):
+        self.latency = latency
+        super().__init__(f"frame time {latency:.2f}ms above target {threshold:.2f}ms")
 
-class HardwareIncompatibilityError(GamePerformanceError):
-    """Raised when hardware fails telemetry requirements."""
+class DataSyncError(PerformanceError):
+    """Raised during packet synchronization failures."""
+    pass
 
-class MemoryLeakingError(GamePerformanceError):
-    """Raised when memory heap growth is abnormal."""
-
-def monitor_performance(func):
-    """Decorator for tracking execution time of game logic."""
-    import time
-    import functools
-
-    @functools.wraps(func)
+def handle_critical_lag(func):
+    """Decorator for monitoring frame budget spikes."""
     def wrapper(*args, **kwargs):
+        import time
         start = time.perf_counter()
         result = func(*args, **kwargs)
-        delta = time.perf_counter() - start
-        if delta > 0.016:
-            raise ResourceThrottleError(f"Frame time exceeded: {delta:.4f}s")
+        elapsed = (time.perf_counter() - start) * 1000
+        if elapsed > 16.67:
+            raise FrameDropWarning(elapsed, 16.67)
         return result
     return wrapper
 
-def validate_memory(current_usage, threshold=1024):
-    """Check memory heap limits for potential leaks."""
-    if current_usage > threshold:
-        raise MemoryLeakingError(f"Usage {current_usage}MB exceeds {threshold}MB limit")
-    return True
+class MetricsRegistry:
+    """Thread-safe registry for performance tracking."""
+    _registry = {}
 
-class PerformanceHandler:
-    def __init__(self, debug_mode=False):
-        self.debug_mode = debug_mode
-
-    def handle(self, e: Exception):
-        if isinstance(e, GamePerformanceError):
-            print(f"[PERF-CRITICAL]: {e}")
-        else:
-            raise e
+    @classmethod
+    def record(cls, key: str, val: float):
+        if val < 0:
+            raise DataSyncError(f"Invalid metric: {val}")
+        cls._registry[key] = val
