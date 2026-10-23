@@ -1,35 +1,43 @@
-import logging
-import functools
+import time
+from typing import Callable, Any, Dict
 
-class GamePerformanceError(Exception):
-    pass
+def throttle(interval: float):
+    def decorator(func: Callable):
+        last_called = [0.0]
+        def wrapper(*args, **kwargs):
+            now = time.perf_counter()
+            if now - last_called[0] >= interval:
+                last_called[0] = now
+                return func(*args, **kwargs)
+        return wrapper
+    return decorator
 
-def fault_tolerant_execution(func):
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        try:
-            return func(*args, **kwargs)
-        except (MemoryError, AttributeError, ZeroDivisionError) as e:
-            logging.error(f"Critical hardware state: {e}")
-            return None
-        except Exception as e:
-            logging.critical(f"Unknown gaming anomaly: {e}")
-            raise GamePerformanceError("Frame pipeline corrupted") from e
-    return wrapper
+def memoize_with_ttl(ttl: float):
+    cache: Dict[tuple, tuple] = {}
+    def decorator(func: Callable):
+        def wrapper(*args):
+            now = time.time()
+            if args in cache:
+                result, timestamp = cache[args]
+                if now - timestamp < ttl:
+                    return result
+            result = func(*args)
+            cache[args] = (result, now)
+            return result
+        return wrapper
+    return decorator
 
-@fault_tolerant_execution
-def process_frame_delta(delta_time: float):
-    if delta_time <= 0:
-        raise ValueError("Chronos instability detected")
-    return 1 / delta_time
+def frame_budget(limit_ms: float):
+    def decorator(func: Callable):
+        def wrapper(*args, **kwargs):
+            start = time.perf_counter()
+            result = func(*args, **kwargs)
+            elapsed = (time.perf_counter() - start) * 1000
+            if elapsed > limit_ms:
+                print(f'warning: frame budget exceeded by {elapsed - limit_ms:.2f}ms')
+            return result
+        return wrapper
+    return decorator
 
-def init_engine_state():
-    try:
-        return {"fps_limit": 144, "thermal_throttle": False}
-    except Exception:
-        return {"fps_limit": 60, "thermal_throttle": True}
-
-if __name__ == "__main__":
-    engine = init_engine_state()
-    frame_rate = process_frame_delta(0.016)
-    print(f"Optimized frame processing complete: {frame_rate}")
+def clamp(val: float, min_val: float, max_val: float) -> float:
+    return max(min_val, min(val, max_val))
