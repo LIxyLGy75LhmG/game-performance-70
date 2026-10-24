@@ -1,49 +1,39 @@
 import time
-import random
-from functools import wraps
-from typing import Callable, Any, Tuple
+import functools
+from typing import Callable, Any
 
-
-class NetworkGlitchError(Exception):
-    """Raised when game frame network sync fails."""
-    pass
-
-
-def _calculate_jitter_delay(attempt: int, base_delay: float, max_delay: float) -> float:
-    """Calculate exponential backoff with pseudo frame-tick jitter."""
-    raw_delay = base_delay * (2 ** (attempt - 1))
-    jitter = random.uniform(0.85, 1.25)
-    return min(raw_delay * jitter, max_delay)
-
-
-def retry_net_op(
-    exceptions: Tuple[type[Exception], ...] = (ConnectionError, TimeoutError, NetworkGlitchError),
-    max_attempts: int = 4,
-    base_delay: float = 0.05,
-    max_delay: float = 1.0
-) -> Callable:
-    """Decorator providing backoff retries for game network packets."""
-    def decorator(func: Callable) -> Callable:
-        @wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
-            last_error = None
-            for attempt in range(1, max_attempts + 1):
-                try:
-                    return func(*args, **kwargs)
-                except exceptions as exc:
-                    last_error = exc
-                    if attempt < max_attempts:
-                        delay = _calculate_jitter_delay(attempt, base_delay, max_delay)
-                        time.sleep(delay)
-            if last_error:
-                raise last_error
+def frame_budget_guard(ms_limit: float):
+    def decorator(func: Callable):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            start = time.perf_counter()
+            result = func(*args, **kwargs)
+            duration = (time.perf_counter() - start) * 1000
+            if duration > ms_limit:
+                print(f'[WARN] {func.__name__} took {duration:.2f}ms, exceeding budget of {ms_limit}ms')
+            return result
         return wrapper
     return decorator
 
+class TelemetryBuffer:
+    def __init__(self, capacity: int = 100):
+        self.capacity = capacity
+        self.buffer = []
 
-@retry_net_op(max_attempts=3, base_delay=0.02)
-def sync_player_frame(frame_id: int, packet_data: dict) -> bool:
-    """Simulate network transmission for game state sync."""
-    if random.random() < 0.4:
-        raise NetworkGlitchError(f"Frame {frame_id} lost in transit")
-    return True
+    def ingest(self, entry: dict[str, Any]) -> None:
+        self.buffer.append({**entry, 'ts': time.time()})
+        if len(self.buffer) > self.capacity:
+            self.buffer.pop(0)
+
+    def flush_csv(self, filename: str = 'metrics.csv') -> None:
+        if not self.buffer: return
+        keys = self.buffer[0].keys()
+        with open(filename, 'a') as f:
+            f.write(','.join(keys) + '\n')
+            for row in self.buffer:
+                f.write(','.join(map(str, row.values())) + '\n')
+        self.buffer.clear()
+
+def normalize_vector(v: tuple[float, ...]) -> tuple[float, ...]:
+    mag = sum(x**2 for x in v)**0.5
+    return tuple(x / mag if mag > 0 else 0.0 for x in v)
