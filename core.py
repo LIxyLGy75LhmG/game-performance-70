@@ -1,43 +1,36 @@
-import time
-from typing import Callable, Any, Dict
+from typing import Dict, List, Optional, Final
 
-def throttle(interval: float):
-    def decorator(func: Callable):
-        last_called = [0.0]
-        def wrapper(*args, **kwargs):
-            now = time.perf_counter()
-            if now - last_called[0] >= interval:
-                last_called[0] = now
-                return func(*args, **kwargs)
-        return wrapper
-    return decorator
+CACHE_SIZE: Final[int] = 1024
 
-def memoize_with_ttl(ttl: float):
-    cache: Dict[tuple, tuple] = {}
-    def decorator(func: Callable):
-        def wrapper(*args):
-            now = time.time()
-            if args in cache:
-                result, timestamp = cache[args]
-                if now - timestamp < ttl:
-                    return result
-            result = func(*args)
-            cache[args] = (result, now)
-            return result
-        return wrapper
-    return decorator
+class FrameProcessor:
+    """Calculates performance metrics from raw frame telemetry data."""
 
-def frame_budget(limit_ms: float):
-    def decorator(func: Callable):
-        def wrapper(*args, **kwargs):
-            start = time.perf_counter()
-            result = func(*args, **kwargs)
-            elapsed = (time.perf_counter() - start) * 1000
-            if elapsed > limit_ms:
-                print(f'warning: frame budget exceeded by {elapsed - limit_ms:.2f}ms')
-            return result
-        return wrapper
-    return decorator
+    def __init__(self, target_fps: int = 60) -> None:
+        self.target_fps: int = target_fps
+        self.history: List[float] = []
 
-def clamp(val: float, min_val: float, max_val: float) -> float:
-    return max(min_val, min(val, max_val))
+    def ingest_frame_time(self, ms: float) -> None:
+        """Adds a new frame duration in milliseconds to the history buffer."""
+        self.history.append(ms)
+        if len(self.history) > CACHE_SIZE:
+            self.history.pop(0)
+
+    def get_avg_latency(self) -> float:
+        """Computes the arithmetic mean of cached frame latencies."""
+        if not self.history:
+            return 0.0
+        return sum(self.history) / len(self.history)
+
+    def assess_health(self, threshold_ms: float = 16.6) -> Dict[str, bool]:
+        """Evaluates if current performance adheres to frame time budget."""
+        avg = self.get_avg_latency()
+        return {"stable": avg <= threshold_ms, "jitter": avg > threshold_ms * 1.5}
+
+def process_stream(data: List[float]) -> Optional[float]:
+    """Batch analysis of frame telemetry streams."""
+    if not data:
+        return None
+    return float(sum(data) / len(data))
+
+# Dynamic frame analysis initialization
+engine = FrameProcessor(target_fps=144)
