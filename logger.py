@@ -1,37 +1,31 @@
-import sys
-import logging
-from datetime import datetime
+import time
+import threading
+from collections import deque
 
 class PerformanceLogger:
-    def __init__(self, log_file='game_perf.log'):
-        self.log_file = log_file
+    def __init__(self, max_buffer=1000):
+        self.buffer = deque(maxlen=max_buffer)
+        self.lock = threading.Lock()
+        self.start_times = {}
 
-    def log_event(self, event_name, data):
-        try:
-            if not isinstance(data, dict):
-                raise ValueError('Payload must be a dictionary')
-            
-            timestamp = datetime.utcnow().isoformat()
-            log_entry = f'[{timestamp}] EVENT: {event_name} | DATA: {data}\n'
-            
-            with open(self.log_file, 'a') as f:
-                f.write(log_entry)
-        except (IOError, PermissionError) as e:
-            self._emergency_fallback(e, event_name)
-        except Exception as e:
-            sys.stderr.write(f'Catastrophic logger failure: {e}\n')
+    def track(self, event_name):
+        self.start_times[event_name] = time.perf_counter()
 
-    def _emergency_fallback(self, error, event_name):
-        fallback_file = 'emergency_log.txt'
-        try:
-            with open(fallback_file, 'a') as f:
-                f.write(f'CRITICAL: {event_name} failed due to {error}\n')
-        except Exception:
-            pass
+    def report(self, event_name):
+        end = time.perf_counter()
+        start = self.start_times.pop(event_name, end)
+        duration = (end - start) * 1000
+        with self.lock:
+            self.buffer.append((event_name, duration))
 
-    def __enter__(self):
-        return self
+    def get_stats(self):
+        with self.lock:
+            if not self.buffer: return {}
+            data = list(self.buffer)
+            return {
+                "avg": sum(d for _, d in data) / len(data),
+                "max": max(d for _, d in data),
+                "count": len(data)
+            }
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        if exc_type:
-            self.log_event('CRITICAL_EXCEPTION', {'error': str(exc_val)})
+perf_logger = PerformanceLogger()
