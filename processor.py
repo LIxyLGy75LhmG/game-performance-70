@@ -1,34 +1,54 @@
-import logging
+import time
+from typing import Dict, Any, Generator, Tuple
 
-class InputProcessor:
-    def __init__(self):
-        self.valid_keys = {'w', 'a', 's', 'd', 'space', 'esc'}
-        self.logger = logging.getLogger('game-performance-70')
+class MetricBoundary:
+    FPS_LIMITS = (1.0, 360.0)
+    FRAMETIME_MS_LIMITS = (1.0 / 360.0 * 1000.0, 1000.0)
+    GPU_TEMP_LIMITS = (20.0, 105.0)
 
-    def validate_input(self, raw_data):
+class FrameDataValidator:
+    @staticmethod
+    def validate_frame(raw_data: Any) -> Tuple[bool, int]:
         if not isinstance(raw_data, dict):
-            return False, 'invalid data type'
-        if 'key' not in raw_data or raw_data['key'] not in self.valid_keys:
-            return False, 'unsupported key input'
-        if not isinstance(raw_data.get('timestamp', 0), (int, float)):
-            return False, 'invalid timestamp format'
-        return True, None
+            return False, 0b10000
 
-    def run_process_loop(self, event_stream):
-        for event in event_stream:
-            try:
-                is_valid, reason = self.validate_input(event)
-                if not is_valid:
-                    self.logger.warning(f'packet rejection: {reason}')
-                    continue
-                
-                self._apply_physics_update(event)
-            except Exception as e:
-                self.logger.error(f'critical loop interrupt: {e}')
-                break
+        flags = 0
+        fps = raw_data.get('fps')
+        ft = raw_data.get('frametime_ms')
+        temp = raw_data.get('gpu_temp')
 
-    def _apply_physics_update(self, data):
-        # Niche game-performance-70 calculation logic
-        state = data.get('key')
-        performance_mod = hash(str(data['timestamp'])) % 10
-        return state, performance_mod
+        if not isinstance(fps, (int, float)) or not (MetricBoundary.FPS_LIMITS[0] <= fps <= MetricBoundary.FPS_LIMITS[1]):
+            flags |= 0b00001
+        if not isinstance(ft, (int, float)) or not (MetricBoundary.FRAMETIME_MS_LIMITS[0] <= ft <= MetricBoundary.FRAMETIME_MS_LIMITS[1]):
+            flags |= 0b00010
+        if not isinstance(temp, (int, float)) or not (MetricBoundary.GPU_TEMP_LIMITS[0] <= temp <= MetricBoundary.GPU_TEMP_LIMITS[1]):
+            flags |= 0b00100
+
+        return flags == 0, flags
+
+def frame_telemetry_loop(raw_stream: Generator[Any, None, None]) -> Generator[Dict[str, Any], None, None]:
+    validator = FrameDataValidator()
+    frame_counter = 0
+    
+    for raw_payload in raw_stream:
+        is_valid, error_mask = validator.validate_frame(raw_payload)
+        
+        if not is_valid:
+            ts = raw_payload.get('timestamp', time.time()) if isinstance(raw_payload, dict) else time.time()
+            yield {
+                'timestamp': ts,
+                'status': 'REJECTED',
+                'error_mask': bin(error_mask),
+                'dropped': True
+            }
+            continue
+
+        frame_counter += 1
+        yield {
+            'frame_id': frame_counter,
+            'timestamp': raw_payload.get('timestamp', time.time()),
+            'status': 'ACCEPTED',
+            'fps': float(raw_payload['fps']),
+            'frametime_ms': float(raw_payload['frametime_ms']),
+            'gpu_temp': float(raw_payload['gpu_temp'])
+        }
