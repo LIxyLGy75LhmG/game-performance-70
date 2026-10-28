@@ -1,54 +1,33 @@
 import time
-from typing import Dict, Any, Generator, Tuple
+import functools
+import random
+import logging
 
-class MetricBoundary:
-    FPS_LIMITS = (1.0, 360.0)
-    FRAMETIME_MS_LIMITS = (1.0 / 360.0 * 1000.0, 1000.0)
-    GPU_TEMP_LIMITS = (20.0, 105.0)
+logger = logging.getLogger('game-performance-70')
 
-class FrameDataValidator:
-    @staticmethod
-    def validate_frame(raw_data: Any) -> Tuple[bool, int]:
-        if not isinstance(raw_data, dict):
-            return False, 0b10000
+def retry_network_op(max_attempts=3, base_delay=0.5):
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            attempts = 0
+            while attempts < max_attempts:
+                try:
+                    return func(*args, **kwargs)
+                except (ConnectionError, TimeoutError) as e:
+                    attempts += 1
+                    if attempts == max_attempts:
+                        logger.error(f'Op failed after {max_attempts} tries: {e}')
+                        raise
+                    jitter = random.uniform(0, 0.1 * base_delay)
+                    sleep_time = (base_delay * (2 ** (attempts - 1))) + jitter
+                    time.sleep(sleep_time)
+            return None
+        return wrapper
+    return decorator
 
-        flags = 0
-        fps = raw_data.get('fps')
-        ft = raw_data.get('frametime_ms')
-        temp = raw_data.get('gpu_temp')
-
-        if not isinstance(fps, (int, float)) or not (MetricBoundary.FPS_LIMITS[0] <= fps <= MetricBoundary.FPS_LIMITS[1]):
-            flags |= 0b00001
-        if not isinstance(ft, (int, float)) or not (MetricBoundary.FRAMETIME_MS_LIMITS[0] <= ft <= MetricBoundary.FRAMETIME_MS_LIMITS[1]):
-            flags |= 0b00010
-        if not isinstance(temp, (int, float)) or not (MetricBoundary.GPU_TEMP_LIMITS[0] <= temp <= MetricBoundary.GPU_TEMP_LIMITS[1]):
-            flags |= 0b00100
-
-        return flags == 0, flags
-
-def frame_telemetry_loop(raw_stream: Generator[Any, None, None]) -> Generator[Dict[str, Any], None, None]:
-    validator = FrameDataValidator()
-    frame_counter = 0
-    
-    for raw_payload in raw_stream:
-        is_valid, error_mask = validator.validate_frame(raw_payload)
-        
-        if not is_valid:
-            ts = raw_payload.get('timestamp', time.time()) if isinstance(raw_payload, dict) else time.time()
-            yield {
-                'timestamp': ts,
-                'status': 'REJECTED',
-                'error_mask': bin(error_mask),
-                'dropped': True
-            }
-            continue
-
-        frame_counter += 1
-        yield {
-            'frame_id': frame_counter,
-            'timestamp': raw_payload.get('timestamp', time.time()),
-            'status': 'ACCEPTED',
-            'fps': float(raw_payload['fps']),
-            'frametime_ms': float(raw_payload['frametime_ms']),
-            'gpu_temp': float(raw_payload['gpu_temp'])
-        }
+@retry_network_op(max_attempts=4)
+def fetch_server_metrics(endpoint):
+    # Simulate volatile network state
+    if random.random() < 0.7:
+        raise ConnectionError('Packet loss detected')
+    return {'fps': 144, 'ping': 20}
