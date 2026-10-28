@@ -1,52 +1,37 @@
 # game-performance-70
 
-`game-performance-70` is a high-precision Python utility designed to monitor, log, and analyze frame-time consistency and resource overhead in real-time gaming environments. It provides developers with actionable telemetry to identify bottlenecks and optimize engine performance across varied hardware configurations.
+`game-performance-70` is a lightweight Python toolkit designed to monitor and optimize system resource allocation for high-demand gaming sessions. It provides real-time metrics and automated process prioritization to reduce frame drops and input latency.
 
 ## Features
 
-*   **Frame-Time Analysis:** Captures millisecond-level interval data to detect stutter and micro-stutter patterns.
-*   **Resource Profiling:** Tracks real-time CPU and GPU usage metrics to correlate performance dips with system spikes.
-*   **CSV Export Engine:** Generates structured logs suitable for integration with external analysis tools like Excel, Grafana, or Tableau.
-*   **Threshold Alerts:** Configurable triggers to log deep system snapshots whenever frame rates drop below user-defined benchmarks.
+*   **Priority Orchestration:** Automatically elevates the CPU priority of active game processes while throttling background services to prevent stuttering.
+*   **Thermal Monitoring:** Tracks GPU and CPU junction temperatures in real-time to alert users before thermal throttling triggers frame rate degradation.
+*   **Resource Profiling:** Generates detailed CSV logs of RAM utilization and VRAM saturation to help identify memory-hungry background applications.
+*   **Instant Optimization:** A single-command toggle that clears standby cache and suspends non-essential Windows tasks during gameplay.
 
 ## Installation
 
-Ensure you have Python 3.8+ installed. Install the package directly via pip:
+Ensure you have Python 3.8+ installed. It is recommended to use a virtual environment for better dependency management.
 
 ```bash
-pip install game-performance-70
-```
-
-To install from source for local development:
-
-```bash
+# Clone the repository
 git clone https://github.com/Developer/game-performance-70.git
 cd game-performance-70
+
+# Install required dependencies
 pip install -r requirements.txt
-python setup.py install
 ```
 
-## Basic Usage
+## Usage
 
-Import the performance collector and initialize the monitor to begin tracking your application's frame data.
+To monitor system performance and enable auto-optimization for your active process, run the main module with administrative privileges:
 
-```python
-from game_perf import PerformanceMonitor
-
-# Initialize monitor with a 60 FPS target threshold
-monitor = PerformanceMonitor(target_fps=60, log_file="performance_log.csv")
-
-# Start data capture
-monitor.start()
-
-# Execute your game loop
-try:
-    while True:
-        monitor.tick()
-except KeyboardInterrupt:
-    monitor.stop()
-    print("Performance log saved successfully.")
+```bash
+# Run with elevated permissions to allow process management
+sudo python main.py --optimize --monitor
 ```
+
+Once running, the application will detect the active fullscreen process and begin resource allocation. Press `Ctrl+C` to stop the service and restore standard system priority.
 
 ## License
 
