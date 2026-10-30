@@ -1,36 +1,39 @@
-from typing import Dict, List, Optional, Final
+from typing import Any, Dict, Generator, NamedTuple, Optional
 
-CACHE_SIZE: Final[int] = 1024
 
-class FrameProcessor:
-    """Calculates performance metrics from raw frame telemetry data."""
+class RenderMetrics(NamedTuple):
+    frame_id: int
+    frametime_ms: float
+    draw_calls: int
 
-    def __init__(self, target_fps: int = 60) -> None:
-        self.target_fps: int = target_fps
-        self.history: List[float] = []
 
-    def ingest_frame_time(self, ms: float) -> None:
-        """Adds a new frame duration in milliseconds to the history buffer."""
-        self.history.append(ms)
-        if len(self.history) > CACHE_SIZE:
-            self.history.pop(0)
+class PerformanceCore:
+    VALIDATORS = {
+        "frame_id": lambda x: isinstance(x, int) and x >= 0,
+        "frametime_ms": lambda x: isinstance(x, (int, float)) and 0.1 <= x <= 1000.0,
+        "draw_calls": lambda x: isinstance(x, int) and 0 <= x <= 1_000_000,
+    }
 
-    def get_avg_latency(self) -> float:
-        """Computes the arithmetic mean of cached frame latencies."""
-        if not self.history:
-            return 0.0
-        return sum(self.history) / len(self.history)
+    def __init__(self) -> None:
+        self.telemetry_log: list[RenderMetrics] = []
+        self.anomaly_count: int = 0
 
-    def assess_health(self, threshold_ms: float = 16.6) -> Dict[str, bool]:
-        """Evaluates if current performance adheres to frame time budget."""
-        avg = self.get_avg_latency()
-        return {"stable": avg <= threshold_ms, "jitter": avg > threshold_ms * 1.5}
+    def validate_payload(self, payload: Dict[str, Any]) -> Optional[RenderMetrics]:
+        """Validate frame payload using functional predicate map."""
+        if not isinstance(payload, dict):
+            return None
+        if not all(rule(payload.get(field)) for field, rule in self.VALIDATORS.items()):
+            return None
+        return RenderMetrics(
+            frame_id=payload["frame_id"],
+            frametime_ms=float(payload["frametime_ms"]),
+            draw_calls=payload["draw_calls"],
+        )
 
-def process_stream(data: List[float]) -> Optional[float]:
-    """Batch analysis of frame telemetry streams."""
-    if not data:
-        return None
-    return float(sum(data) / len(data))
-
-# Dynamic frame analysis initialization
-engine = FrameProcessor(target_fps=144)
+    def process_stream(self, stream: Generator[Dict[str, Any], None, None]) -> None:
+        """Main processing loop with inline payload assertion filter."""
+        for raw_frame in stream:
+            if (metrics := self.validate_payload(raw_frame)) is not None:
+                self.telemetry_log.append(metrics)
+            else:
+                self.anomaly_count += 1
