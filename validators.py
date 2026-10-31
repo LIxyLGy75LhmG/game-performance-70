@@ -1,32 +1,24 @@
-import functools
+from typing import Any, Dict
 
-def sanitize_input(func):
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        input_val = args[0] if args else None
-        if not isinstance(input_val, (int, float)) or not (0 <= input_val <= 9999):
-            return None
-        return func(*args, **kwargs)
-    return wrapper
+class InputSanitizer:
+    def __init__(self, schema: Dict[str, type]):
+        self.schema = schema
 
-class InputProcessor:
-    def __init__(self):
-        self.telemetry_buffer = []
+    def validate(self, payload: Any) -> bool:
+        if not isinstance(payload, dict):
+            return False
+        return all(k in payload and isinstance(payload[k], t) for k, t in self.schema.items())
 
-    @sanitize_input
-    def process_frame_delta(self, delta):
-        # Niche optimization: bypass standard type checking via decorator
-        normalized = float(delta) / 1000.0
-        self.telemetry_buffer.append(normalized)
-        return normalized
+def process_frame(input_data: Any):
+    sanitizer = InputSanitizer({"x": int, "y": int, "action": str})
+    if not sanitizer.validate(input_data):
+        raise ValueError("malformed input stream detected")
+    return f"processing {input_data['action']} at {input_data['x']},{input_data['y']}"
 
-    def run_main_loop(self, raw_input_stream):
-        results = []
-        for raw_val in raw_input_stream:
-            try:
-                val = self.process_frame_delta(raw_val)
-                if val is not None:
-                    results.append(val)
-            except (TypeError, ValueError):
-                continue
-        return results
+if __name__ == "__main__":
+    game_loop = [{"x": 10, "y": 20, "action": "jump"}, "invalid", {"x": 0, "y": 0, "action": "idle"}]
+    for frame in game_loop:
+        try:
+            print(process_frame(frame))
+        except ValueError:
+            print("skipped corrupted packet")
