@@ -1,39 +1,27 @@
-from typing import Any, Dict, Generator, NamedTuple, Optional
+import time
+import random
+from functools import wraps
 
+def resilient_network(max_attempts=3, backoff=0.5):
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            attempts = 0
+            while attempts < max_attempts:
+                try:
+                    return func(*args, **kwargs)
+                except Exception as e:
+                    attempts += 1
+                    if attempts == max_attempts:
+                        raise e
+                    sleep_time = backoff * (2 ** (attempts - 1)) + random.uniform(0, 0.1)
+                    time.sleep(sleep_time)
+        return wrapper
+    return decorator
 
-class RenderMetrics(NamedTuple):
-    frame_id: int
-    frametime_ms: float
-    draw_calls: int
-
-
-class PerformanceCore:
-    VALIDATORS = {
-        "frame_id": lambda x: isinstance(x, int) and x >= 0,
-        "frametime_ms": lambda x: isinstance(x, (int, float)) and 0.1 <= x <= 1000.0,
-        "draw_calls": lambda x: isinstance(x, int) and 0 <= x <= 1_000_000,
-    }
-
-    def __init__(self) -> None:
-        self.telemetry_log: list[RenderMetrics] = []
-        self.anomaly_count: int = 0
-
-    def validate_payload(self, payload: Dict[str, Any]) -> Optional[RenderMetrics]:
-        """Validate frame payload using functional predicate map."""
-        if not isinstance(payload, dict):
-            return None
-        if not all(rule(payload.get(field)) for field, rule in self.VALIDATORS.items()):
-            return None
-        return RenderMetrics(
-            frame_id=payload["frame_id"],
-            frametime_ms=float(payload["frametime_ms"]),
-            draw_calls=payload["draw_calls"],
-        )
-
-    def process_stream(self, stream: Generator[Dict[str, Any], None, None]) -> None:
-        """Main processing loop with inline payload assertion filter."""
-        for raw_frame in stream:
-            if (metrics := self.validate_payload(raw_frame)) is not None:
-                self.telemetry_log.append(metrics)
-            else:
-                self.anomaly_count += 1
+@resilient_network(max_attempts=5)
+def fetch_game_data(endpoint):
+    # Simulate volatile network state
+    if random.random() < 0.7:
+        raise ConnectionError('Packet drop in game-performance-70 cluster')
+    return {'status': 'success', 'data': 'payload'}
