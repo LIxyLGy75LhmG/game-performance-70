@@ -1,31 +1,37 @@
 import time
-import threading
-from collections import deque
+import functools
+from typing import Callable, Any
 
-class PerformanceLogger:
-    def __init__(self, max_buffer=1000):
-        self.buffer = deque(maxlen=max_buffer)
-        self.lock = threading.Lock()
-        self.start_times = {}
+class GamePerformanceLogger:
+    def __init__(self, threshold_ms: float = 16.67):
+        self.threshold = threshold_ms
 
-    def track(self, event_name):
-        self.start_times[event_name] = time.perf_counter()
+    def __call__(self, func: Callable) -> Callable:
+        @functools.wraps(func)
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            start = time.perf_counter()
+            result = func(*args, **kwargs)
+            elapsed = (time.perf_counter() - start) * 1000
+            if elapsed > self.threshold:
+                print(f'[FRAME DROPPED] {func.__name__} took {elapsed:.2f}ms')
+            return result
+        return wrapper
 
-    def report(self, event_name):
-        end = time.perf_counter()
-        start = self.start_times.pop(event_name, end)
-        duration = (end - start) * 1000
-        with self.lock:
-            self.buffer.append((event_name, duration))
+performance_monitor = GamePerformanceLogger()
 
-    def get_stats(self):
-        with self.lock:
-            if not self.buffer: return {}
-            data = list(self.buffer)
-            return {
-                "avg": sum(d for _, d in data) / len(data),
-                "max": max(d for _, d in data),
-                "count": len(data)
-            }
+def log_memory_usage(data: dict) -> None:
+    total_size = sum(len(str(v)) for v in data.values())
+    print(f'[MEMORY SNAPSHOT] heap state size: {total_size} bytes')
 
-perf_logger = PerformanceLogger()
+class TelemetryBuffer:
+    def __init__(self, capacity: int = 100):
+        self.buffer = []
+        self.capacity = capacity
+
+    def push(self, event: dict):
+        self.buffer.append({**event, 'ts': time.time()})
+        if len(self.buffer) > self.capacity:
+            self.buffer.pop(0)
+
+    def dump(self):
+        return list(self.buffer)
