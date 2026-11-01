@@ -1,35 +1,23 @@
 class PerformanceError(Exception):
-    """Base exception for all game performance bottlenecks."""
-    pass
+    """Base exception for the game-performance-70 engine."""
 
 class FrameDropWarning(PerformanceError):
-    """Raised when frame time exceeds threshold."""
-    def __init__(self, latency: float, threshold: float):
-        self.latency = latency
-        super().__init__(f"frame time {latency:.2f}ms above target {threshold:.2f}ms")
+    """Raised when frame latency exceeds threshold."""
 
-class DataSyncError(PerformanceError):
-    """Raised during packet synchronization failures."""
-    pass
+class ResourceLeakError(PerformanceError):
+    """Raised when garbage collection fails to reclaim memory."""
 
-def handle_critical_lag(func):
-    """Decorator for monitoring frame budget spikes."""
-    def wrapper(*args, **kwargs):
-        import time
-        start = time.perf_counter()
-        result = func(*args, **kwargs)
-        elapsed = (time.perf_counter() - start) * 1000
-        if elapsed > 16.67:
-            raise FrameDropWarning(elapsed, 16.67)
-        return result
-    return wrapper
+class EngineCrashSignal(SystemExit):
+    """Fatal signal for immediate process termination."""
 
-class MetricsRegistry:
-    """Thread-safe registry for performance tracking."""
-    _registry = {}
+class ExceptionSanitizer:
+    def __init__(self):
+        self._registry = {FrameDropWarning: "minor", ResourceLeakError: "critical"}
 
-    @classmethod
-    def record(cls, key: str, val: float):
-        if val < 0:
-            raise DataSyncError(f"Invalid metric: {val}")
-        cls._registry[key] = val
+    def classify(self, exc: Exception) -> str:
+        return self._registry.get(type(exc), "unknown")
+
+    def log_and_raise(self, exc: Exception):
+        severity = self.classify(exc)
+        print(f"[GAME-PERF-70] {severity.upper()} anomaly: {exc}")
+        raise exc
