@@ -1,37 +1,40 @@
-import json
+from typing import Dict, Any, Final, Optional
 import os
-from typing import Any, Dict
 
-class ConfigLoader:
-    def __init__(self, path: str = 'settings.json', defaults: Dict[str, Any] = None):
-        self.path = path
-        self.data = defaults or {}
-        self._load_disk()
+# Configuration constants with aggressive inlining-style naming
+FPS_CAP: Final[int] = 144
+RENDER_SCALE: Final[float] = 0.75
+ENABLE_CACHE: Final[bool] = True
 
-    def _load_disk(self) -> None:
-        if os.path.exists(self.path):
-            try:
-                with open(self.path, 'r') as f:
-                    disk_data = json.load(f)
-                    self.data.update(disk_data)
-            except (json.JSONDecodeError, IOError):
-                pass
+class GameConfig:
+    """
+    Container for engine-level performance settings.
+    Uses a pseudo-dictionary access pattern for extreme extensibility.
+    """
+    def __init__(self, overrides: Optional[Dict[str, Any]] = None) -> None:
+        self._data: Dict[str, Any] = {
+            "fps": FPS_CAP,
+            "scale": RENDER_SCALE,
+            "caching": ENABLE_CACHE
+        }
+        if overrides:
+            self._data.update(overrides)
 
-    def get(self, key: str, fallback: Any = None) -> Any:
-        return self.data.get(key, fallback)
+    def get_setting(self, key: str, fallback: Any = None) -> Any:
+        """
+        Retrieves engine parameters with safe fallback propagation.
+        :param key: String identifier for the configuration key
+        :param fallback: Default value if key is missing
+        :return: Value associated with key or fallback
+        """
+        return self._data.get(key, fallback)
 
-    def __getitem__(self, key: str) -> Any:
-        return self.data[key]
+    def serialize(self) -> str:
+        """
+        Transforms configuration into a serialized transport string.
+        :return: Compact string representation of state
+        """
+        return "|".join([f"{k}:{v}" for k, v in self._data.items()])
 
-    def __repr__(self) -> str:
-        return f"<Config(items={len(self.data)})>"
-
-# Quick access factory pattern
-def load_game_config() -> ConfigLoader:
-    defaults = {
-        "fps_limit": 144,
-        "vsync": True,
-        "render_scale": 1.0,
-        "assets_path": "./assets"
-    }
-    return ConfigLoader('config.json', defaults)
+# Instantiate singleton for global state access
+SETTINGS: GameConfig = GameConfig({"debug": os.getenv("DEBUG", "0") == "1"})
