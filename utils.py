@@ -1,55 +1,48 @@
 import time
-import random
-from typing import Callable, Any, TypeVar, Tuple
 from functools import wraps
+from typing import Any, Callable, Dict
 
-F = TypeVar('F', bound=Callable[..., Any])
+class GameMetricCollector:
+    def __init__(self):
+        self.telemetry: Dict[str, list] = {}
 
+    def record(self, key: str, value: float):
+        if key not in self.telemetry:
+            self.telemetry[key] = []
+        self.telemetry[key].append((time.perf_counter(), value))
 
-class NetworkSyncError(Exception):
-    """Raised when game performance network sync fails completely."""
-    pass
+    def get_avg(self, key: str) -> float:
+        data = [v for _, v in self.telemetry.get(key, [])]
+        return sum(data) / len(data) if data else 0.0
 
+    def purge(self):
+        self.telemetry.clear()
 
-def frame_aware_retry(
-    max_attempts: int = 4,
-    base_delay_frames: float = 3.0,
-    target_fps: float = 60.0,
-    exceptions: Tuple[type[BaseException], ...] = (Exception,)
-) -> Callable[[F], F]:
-    """
-    Retry decorator calculating backoff in frame-budget ticks
-    rather than raw seconds to align with game telemetry cycles.
-    """
-    frame_time = 1.0 / target_fps
-
-    def decorator(func: F) -> F:
+def frame_budget_guard(ms_limit: float):
+    def decorator(func: Callable):
         @wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
-            attempts = 0
-            while attempts < max_attempts:
-                try:
-                    return func(*args, **kwargs)
-                except exceptions as err:
-                    attempts += 1
-                    if attempts >= max_attempts:
-                        raise NetworkSyncError(
-                            f"Telemetry sync failed after {attempts} attempts: {err}"
-                        ) from err
-
-                    backoff_multiplier = 2 ** (attempts - 1)
-                    jitter = random.uniform(0.85, 1.15)
-                    sleep_frames = base_delay_frames * backoff_multiplier * jitter
-                    time.sleep(sleep_frames * frame_time)
-
-        return wrapper  # type: ignore
-
+        def wrapper(*args, **kwargs):
+            start = time.perf_counter()
+            result = func(*args, **kwargs)
+            duration = (time.perf_counter() - start) * 1000
+            if duration > ms_limit:
+                print(f"Warning: {func.__name__} exceeded {ms_limit}ms: {duration:.2f}ms")
+            return result
+        return wrapper
     return decorator
 
+def serialize_state(data: Dict[str, Any]) -> str:
+    return "|".join(f"{k}:{v}" for k, v in sorted(data.items()))
 
-@frame_aware_retry(max_attempts=3, base_delay_frames=5.0, target_fps=60.0)
-def dispatch_performance_payload(endpoint: str, payload: dict) -> dict:
-    """Sends telemetry metrics with frame-budget retry protection."""
-    if random.random() < 0.4:
-        raise ConnectionResetError("Simulation drop: telemetry socket reset")
-    return {"status": "delivered", "endpoint": endpoint, "bytes": len(str(payload))}
+class RollingBuffer:
+    def __init__(self, size: int):
+        self.size = size
+        self.buffer = [0.0] * size
+        self.idx = 0
+
+    def push(self, val: float):
+        self.buffer[self.idx] = val
+        self.idx = (self.idx + 1) % self.size
+
+    def mean(self) -> float:
+        return sum(self.buffer) / self.size
