@@ -1,37 +1,30 @@
+import logging
 import time
 import functools
-from typing import Callable, Any
 
-class GamePerformanceLogger:
-    def __init__(self, threshold_ms: float = 16.67):
-        self.threshold = threshold_ms
+class GameLogger:
+    def __init__(self, name="game-performance-70"):
+        self.logger = logging.getLogger(name)
+        self.logger.setLevel(logging.DEBUG)
+        handler = logging.StreamHandler()
+        formatter = logging.Formatter('%(asctime)s | [%(levelname)s] | %(message)s')
+        handler.setFormatter(formatter)
+        self.logger.addHandler(handler)
 
-    def __call__(self, func: Callable) -> Callable:
+    def log_performance(self, func):
         @functools.wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
+        def wrapper(*args, **kwargs):
             start = time.perf_counter()
             result = func(*args, **kwargs)
-            elapsed = (time.perf_counter() - start) * 1000
-            if elapsed > self.threshold:
-                print(f'[FRAME DROPPED] {func.__name__} took {elapsed:.2f}ms')
+            duration = (time.perf_counter() - start) * 1000
+            self.logger.debug(f"op {func.__name__} took {duration:.3f}ms")
             return result
         return wrapper
 
-performance_monitor = GamePerformanceLogger()
+    def trace(self, msg: str):
+        self.logger.info(f"[TRACE] {msg}")
 
-def log_memory_usage(data: dict) -> None:
-    total_size = sum(len(str(v)) for v in data.values())
-    print(f'[MEMORY SNAPSHOT] heap state size: {total_size} bytes')
+    def error_report(self, e: Exception):
+        self.logger.error(f"crashed during frame: {str(e)}")
 
-class TelemetryBuffer:
-    def __init__(self, capacity: int = 100):
-        self.buffer = []
-        self.capacity = capacity
-
-    def push(self, event: dict):
-        self.buffer.append({**event, 'ts': time.time()})
-        if len(self.buffer) > self.capacity:
-            self.buffer.pop(0)
-
-    def dump(self):
-        return list(self.buffer)
+perf_logger = GameLogger()
