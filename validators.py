@@ -1,24 +1,27 @@
-from typing import Any, Dict
+import logging
+from typing import Any, Dict, Optional
 
-class InputSanitizer:
-    def __init__(self, schema: Dict[str, type]):
-        self.schema = schema
+def validate_game_frame(data: Any) -> Optional[Dict]:
+    """Strict frame sanitizer for high-fps processing"""
+    if not isinstance(data, dict):
+        return None
+    
+    required_schema = {'fps': (int, float), 'delta': (int, float)}
+    
+    try:
+        for key, expected_type in required_schema.items():
+            val = data.get(key)
+            if not isinstance(val, expected_type) or val < 0:
+                raise ValueError(f"Invalid field {key}: {val}")
+        return data
+    except (ValueError, TypeError) as e:
+        logging.error(f"Dropped corrupt frame data: {e}")
+        return None
 
-    def validate(self, payload: Any) -> bool:
-        if not isinstance(payload, dict):
-            return False
-        return all(k in payload and isinstance(payload[k], t) for k, t in self.schema.items())
-
-def process_frame(input_data: Any):
-    sanitizer = InputSanitizer({"x": int, "y": int, "action": str})
-    if not sanitizer.validate(input_data):
-        raise ValueError("malformed input stream detected")
-    return f"processing {input_data['action']} at {input_data['x']},{input_data['y']}"
-
-if __name__ == "__main__":
-    game_loop = [{"x": 10, "y": 20, "action": "jump"}, "invalid", {"x": 0, "y": 0, "action": "idle"}]
-    for frame in game_loop:
-        try:
-            print(process_frame(frame))
-        except ValueError:
-            print("skipped corrupted packet")
+def process_loop_input(raw_input: Any) -> None:
+    """Entry point for main loop sanitation"""
+    validated = validate_game_frame(raw_input)
+    if validated:
+        logging.info(f"Processing frame at {validated['fps']} FPS")
+    else:
+        logging.warning("Malformed frame packet bypassed sanity check")
