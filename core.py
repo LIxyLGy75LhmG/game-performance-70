@@ -1,27 +1,41 @@
 import time
-import random
-from functools import wraps
+import functools
+import logging
+from typing import Callable, Any
 
-def resilient_network(max_attempts=3, backoff=0.5):
-    def decorator(func):
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            attempts = 0
-            while attempts < max_attempts:
-                try:
-                    return func(*args, **kwargs)
-                except Exception as e:
-                    attempts += 1
-                    if attempts == max_attempts:
-                        raise e
-                    sleep_time = backoff * (2 ** (attempts - 1)) + random.uniform(0, 0.1)
-                    time.sleep(sleep_time)
+def performance_tracker(func: Callable) -> Callable:
+    @functools.wraps(func)
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
+        start_time = time.perf_counter()
+        result = func(*args, **kwargs)
+        end_time = time.perf_counter()
+        print(f'[PERF] {func.__name__} executed in {end_time - start_time:.6f}s')
+        return result
+    return wrapper
+
+def frame_rate_limiter(target_fps: int) -> Callable:
+    frame_duration = 1.0 / target_fps
+    def decorator(func: Callable) -> Callable:
+        @functools.wraps(func)
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            start = time.perf_counter()
+            result = func(*args, **kwargs)
+            elapsed = time.perf_counter() - start
+            sleep_time = frame_duration - elapsed
+            if sleep_time > 0:
+                time.sleep(sleep_time)
+            return result
         return wrapper
     return decorator
 
-@resilient_network(max_attempts=5)
-def fetch_game_data(endpoint):
-    # Simulate volatile network state
-    if random.random() < 0.7:
-        raise ConnectionError('Packet drop in game-performance-70 cluster')
-    return {'status': 'success', 'data': 'payload'}
+def lazy_asset_loader(asset_path: str) -> dict:
+    data = {'loaded': False, 'content': None}
+    def loader():
+        if not data['loaded']:
+            data['content'] = f'raw_bytes_from_{asset_path}'
+            data['loaded'] = True
+        return data['content']
+    return {'get': loader}
+
+def clamp(val: float, min_val: float, max_val: float) -> float:
+    return max(min_val, min(val, max_val))
