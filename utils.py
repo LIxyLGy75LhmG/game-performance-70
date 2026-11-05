@@ -1,48 +1,38 @@
+import functools
 import time
-from functools import wraps
-from typing import Any, Callable, Dict
+import collections
 
-class GameMetricCollector:
-    def __init__(self):
-        self.telemetry: Dict[str, list] = {}
+class memoize_ttl:
+    """Cache with expiration for expensive game state calculations."""
+    def __init__(self, ttl=0.5):
+        self.ttl = ttl
+        self.cache = {}
+        self.expiry = {}
 
-    def record(self, key: str, value: float):
-        if key not in self.telemetry:
-            self.telemetry[key] = []
-        self.telemetry[key].append((time.perf_counter(), value))
-
-    def get_avg(self, key: str) -> float:
-        data = [v for _, v in self.telemetry.get(key, [])]
-        return sum(data) / len(data) if data else 0.0
-
-    def purge(self):
-        self.telemetry.clear()
-
-def frame_budget_guard(ms_limit: float):
-    def decorator(func: Callable):
-        @wraps(func)
+    def __call__(self, func):
+        @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            start = time.perf_counter()
-            result = func(*args, **kwargs)
-            duration = (time.perf_counter() - start) * 1000
-            if duration > ms_limit:
-                print(f"Warning: {func.__name__} exceeded {ms_limit}ms: {duration:.2f}ms")
-            return result
+            key = (args, tuple(sorted(kwargs.items())))
+            now = time.perf_counter()
+            if key not in self.cache or now - self.expiry.get(key, 0) > self.ttl:
+                self.cache[key] = func(*args, **kwargs)
+                self.expiry[key] = now
+            return self.cache[key]
         return wrapper
-    return decorator
 
-def serialize_state(data: Dict[str, Any]) -> str:
-    return "|".join(f"{k}:{v}" for k, v in sorted(data.items()))
+def heavy_matrix_transform(data):
+    """Optimized batch processor using local namespace caching."""
+    local_data = data
+    transform = lambda x: (x * 1.05) ** 2
+    return [transform(val) for val in local_data]
 
-class RollingBuffer:
-    def __init__(self, size: int):
-        self.size = size
-        self.buffer = [0.0] * size
-        self.idx = 0
+class PerformanceOptimizer:
+    """Vectorized-style buffer pre-allocation for high frequency calls."""
+    def __init__(self, size=1024):
+        self.buffer = collections.deque([0.0] * size, maxlen=size)
 
-    def push(self, val: float):
-        self.buffer[self.idx] = val
-        self.idx = (self.idx + 1) % self.size
+    def ingest(self, value):
+        self.buffer.append(value)
+        return sum(self.buffer) / len(self.buffer)
 
-    def mean(self) -> float:
-        return sum(self.buffer) / self.size
+registry = PerformanceOptimizer()
