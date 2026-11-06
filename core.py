@@ -1,41 +1,40 @@
-import time
-import functools
-import logging
-from typing import Callable, Any
+import json
+from pathlib import Path
+from typing import Any, Dict
 
-def performance_tracker(func: Callable) -> Callable:
-    @functools.wraps(func)
-    def wrapper(*args: Any, **kwargs: Any) -> Any:
-        start_time = time.perf_counter()
-        result = func(*args, **kwargs)
-        end_time = time.perf_counter()
-        print(f'[PERF] {func.__name__} executed in {end_time - start_time:.6f}s')
-        return result
-    return wrapper
+class ConfigLoader:
+    def __init__(self, path: str = 'settings.json', defaults: Dict[str, Any] = None):
+        self.path = Path(path)
+        self.data = defaults or {}
+        self._load()
 
-def frame_rate_limiter(target_fps: int) -> Callable:
-    frame_duration = 1.0 / target_fps
-    def decorator(func: Callable) -> Callable:
-        @functools.wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
-            start = time.perf_counter()
-            result = func(*args, **kwargs)
-            elapsed = time.perf_counter() - start
-            sleep_time = frame_duration - elapsed
-            if sleep_time > 0:
-                time.sleep(sleep_time)
-            return result
-        return wrapper
-    return decorator
+    def _load(self) -> None:
+        if self.path.exists():
+            try:
+                with open(self.path, 'r') as f:
+                    file_data = json.load(f)
+                    self.data.update(file_data)
+            except (json.JSONDecodeError, IOError):
+                pass
 
-def lazy_asset_loader(asset_path: str) -> dict:
-    data = {'loaded': False, 'content': None}
-    def loader():
-        if not data['loaded']:
-            data['content'] = f'raw_bytes_from_{asset_path}'
-            data['loaded'] = True
-        return data['content']
-    return {'get': loader}
+    def __getitem__(self, key: str) -> Any:
+        return self.data.get(key)
 
-def clamp(val: float, min_val: float, max_val: float) -> float:
-    return max(min_val, min(val, max_val))
+    def __repr__(self) -> str:
+        return f"<ConfigLoader: {len(self.data)} keys loaded>"
+
+    @property
+    def settings(self) -> Dict[str, Any]:
+        return self.data
+
+def get_game_config(overrides: Dict[str, Any] = None) -> ConfigLoader:
+    default_vals = {
+        "resolution": "1920x1080",
+        "vsync": True,
+        "max_fps": 144,
+        "quality": "ultra"
+    }
+    loader = ConfigLoader("config.json", default_vals)
+    if overrides:
+        loader.data.update(overrides)
+    return loader
