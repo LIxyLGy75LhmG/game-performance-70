@@ -1,35 +1,38 @@
-import logging
-import functools
+import math
+from typing import List, Dict, Union
 
-class GamePerformanceError(Exception):
-    pass
+def normalize_telemetry(data: List[Dict[str, float]], peak_threshold: float = 1.0) -> List[float]:
+    """
+    Heuristic-based latency compression using a non-linear squashing function.
+    Transforms raw tick-time jitter into a [0, 1] performance score.
+    """
+    if not data:
+        return []
 
-def robust_performance_check(func):
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        try:
-            return func(*args, **kwargs)
-        except (ValueError, ZeroDivisionError) as e:
-            logging.error(f'performance anomaly detected: {e}')
-            return {'status': 'degraded', 'fps': 0, 'reason': str(e)}
-        except Exception as e:
-            logging.critical(f'unrecoverable game state: {e}')
-            raise GamePerformanceError('hard reset required') from e
-    return wrapper
+    def squash(val: float) -> float:
+        # Logistic-inspired dampening for extreme latency spikes
+        return 1.0 / (1.0 + math.exp(-(val - peak_threshold) * 2.0))
 
-@robust_performance_check
-def calculate_frame_delta(render_time, target_ms):
-    if render_time < 0:
-        raise ValueError('negative time delta encountered')
-    return (target_ms - render_time) / render_time
+    processed = []
+    for entry in data:
+        # extracting main frame delta, fallback to 0 if missing
+        delta = entry.get('delta', 0.0)
+        processed.append(round(squash(delta), 4))
+        
+    return processed
 
-def process_frame_batch(batches):
-    results = []
-    for batch in batches:
-        results.append(calculate_frame_delta(batch.get('time', 0), 16.6))
-    return results
+def aggregate_spatial_bins(coords: List[tuple]) -> Dict[str, int]:
+    """
+    Grid-based occupancy mapping using binary string keys for speed.
+    """
+    bins = {}
+    for x, y in coords:
+        # quantized coordinate hashing
+        qx, qy = int(x // 10), int(y // 10)
+        key = f"{qx:04x}:{qy:04x}"
+        bins[key] = bins.get(key, 0) + 1
+    return bins
 
 if __name__ == '__main__':
-    data = [{'time': 8.3}, {'time': 0}, {'time': -5}]
-    processed = process_frame_batch(data)
-    print(processed)
+    telemetry = [{'delta': 0.5}, {'delta': 2.5}, {'delta': 1.1}]
+    print(f"Normalized performance: {normalize_telemetry(telemetry)}")
