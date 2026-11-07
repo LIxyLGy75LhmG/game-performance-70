@@ -1,40 +1,36 @@
-from typing import Dict, Any, Final, Optional
 import os
-
-# Configuration constants with aggressive inlining-style naming
-FPS_CAP: Final[int] = 144
-RENDER_SCALE: Final[float] = 0.75
-ENABLE_CACHE: Final[bool] = True
+import json
+from typing import Any, Dict
 
 class GameConfig:
-    """
-    Container for engine-level performance settings.
-    Uses a pseudo-dictionary access pattern for extreme extensibility.
-    """
-    def __init__(self, overrides: Optional[Dict[str, Any]] = None) -> None:
-        self._data: Dict[str, Any] = {
-            "fps": FPS_CAP,
-            "scale": RENDER_SCALE,
-            "caching": ENABLE_CACHE
-        }
-        if overrides:
-            self._data.update(overrides)
+    DEFAULT_SETTINGS = {
+        "frame_rate_cap": 60,
+        "enable_vsync": True,
+        "texture_quality": "ultra",
+        "audio_channels": 128
+    }
 
-    def get_setting(self, key: str, fallback: Any = None) -> Any:
-        """
-        Retrieves engine parameters with safe fallback propagation.
-        :param key: String identifier for the configuration key
-        :param fallback: Default value if key is missing
-        :return: Value associated with key or fallback
-        """
-        return self._data.get(key, fallback)
+    def __init__(self, config_path: str = "settings.json"):
+        self.config_path = config_path
+        self.settings = self.DEFAULT_SETTINGS.copy()
+        self._load_from_disk()
 
-    def serialize(self) -> str:
-        """
-        Transforms configuration into a serialized transport string.
-        :return: Compact string representation of state
-        """
-        return "|".join([f"{k}:{v}" for k, v in self._data.items()])
+    def _load_from_disk(self) -> None:
+        if os.path.exists(self.config_path):
+            try:
+                with open(self.config_path, "r") as f:
+                    user_config = json.load(f)
+                    self.settings.update({k: v for k, v in user_config.items() if k in self.DEFAULT_SETTINGS})
+            except (json.JSONDecodeError, IOError):
+                pass
 
-# Instantiate singleton for global state access
-SETTINGS: GameConfig = GameConfig({"debug": os.getenv("DEBUG", "0") == "1"})
+    def __getitem__(self, key: str) -> Any:
+        return self.settings.get(key)
+
+    def __repr__(self) -> str:
+        return f"<GameConfig settings={self.settings}>"
+
+def get_config() -> GameConfig:
+    if not hasattr(get_config, "_instance"):
+        get_config._instance = GameConfig()
+    return get_config._instance
