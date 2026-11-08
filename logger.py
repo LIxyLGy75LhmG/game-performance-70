@@ -1,30 +1,47 @@
-import logging
+import sys
+import os
 import time
-import functools
+import json
+from typing import Any, Dict, Optional
 
-class GameLogger:
-    def __init__(self, name="game-performance-70"):
-        self.logger = logging.getLogger(name)
-        self.logger.setLevel(logging.DEBUG)
-        handler = logging.StreamHandler()
-        formatter = logging.Formatter('%(asctime)s | [%(levelname)s] | %(message)s')
-        handler.setFormatter(formatter)
-        self.logger.addHandler(handler)
+class TelemetryLogger:
+    def __init__(self, primary_path: str = "game_perf.log", max_retries: int = 3):
+        self.primary_path = primary_path
+        self.fallback_path = f"fallback_{int(time.time())}.log"
+        self.max_retries = max_retries
+        self._emergency_stream = sys.stderr
 
-    def log_performance(self, func):
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            start = time.perf_counter()
-            result = func(*args, **kwargs)
-            duration = (time.perf_counter() - start) * 1000
-            self.logger.debug(f"op {func.__name__} took {duration:.3f}ms")
-            return result
-        return wrapper
+    def _safe_serialize(self, data: Dict[str, Any]) -> str:
+        try:
+            return json.dumps(data, default=lambda o: f"<unserializable {type(o).__name__}>")
+        except Exception:
+            return json.dumps({"status": "corrupt_payload", "timestamp": time.time()})
 
-    def trace(self, msg: str):
-        self.logger.info(f"[TRACE] {msg}")
-
-    def error_report(self, e: Exception):
-        self.logger.error(f"crashed during frame: {str(e)}")
-
-perf_logger = GameLogger()
+    def log_frame_metric(self, frame_id: int, fps: float, metrics: Optional[Dict[str, Any]] = None) -> bool:
+        payload = {
+            "frame": frame_id,
+            "fps": max(0.0, float(fps)) if isinstance(fps, (int, float)) else 0.0,
+            "ts": time.time(),
+            "details": metrics or {}
+        }
+        
+        serialized = self._safe_serialize(payload) + "\n"
+        
+        for attempt in range(self.max_retries):
+            target = self.primary_path if attempt == 0 else self.fallback_path
+            try:
+                with open(target, "a", encoding="utf-8") as f:
+                    f.write(serialized)
+                    f.flush()
+                return True
+            except (IOError, OSError, PermissionError):
+                if attempt == self.max_retries - 1:
+                    try:
+                        self._emergency_stream.write(f"[EMERGENCY_LOG] {serialized}")
+                        self._emergency_stream.flush()
+                        return True
+                    except Exception:
+                        return False
+            except Exception:
+                pass
+        return False
