@@ -1,38 +1,40 @@
-import functools
 import time
-import collections
+import functools
+from typing import Callable, Any
 
-class memoize_ttl:
-    """Cache with expiration for expensive game state calculations."""
-    def __init__(self, ttl=0.5):
-        self.ttl = ttl
-        self.cache = {}
-        self.expiry = {}
-
-    def __call__(self, func):
+def frame_throttle(ms: int):
+    def decorator(func: Callable):
+        last_call = 0
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            key = (args, tuple(sorted(kwargs.items())))
-            now = time.perf_counter()
-            if key not in self.cache or now - self.expiry.get(key, 0) > self.ttl:
-                self.cache[key] = func(*args, **kwargs)
-                self.expiry[key] = now
-            return self.cache[key]
+            nonlocal last_call
+            now = time.perf_counter() * 1000
+            if now - last_call >= ms:
+                last_call = now
+                return func(*args, **kwargs)
         return wrapper
+    return decorator
 
-def heavy_matrix_transform(data):
-    """Optimized batch processor using local namespace caching."""
-    local_data = data
-    transform = lambda x: (x * 1.05) ** 2
-    return [transform(val) for val in local_data]
+def batch_process(items: list, size: int):
+    for i in range(0, len(items), size):
+        yield items[i:i + size]
 
-class PerformanceOptimizer:
-    """Vectorized-style buffer pre-allocation for high frequency calls."""
-    def __init__(self, size=1024):
-        self.buffer = collections.deque([0.0] * size, maxlen=size)
+def memory_cleanup(obj_dict: dict, threshold: int):
+    if len(obj_dict) > threshold:
+        keys = sorted(obj_dict.keys(), key=lambda k: getattr(obj_dict[k], 'last_used', 0))
+        for i in range(len(obj_dict) - threshold):
+            del obj_dict[keys[i]]
 
-    def ingest(self, value):
-        self.buffer.append(value)
-        return sum(self.buffer) / len(self.buffer)
+def calculate_fps(frame_times: list) -> float:
+    if not frame_times:
+        return 0.0
+    return 1000.0 / (sum(frame_times) / len(frame_times))
 
-registry = PerformanceOptimizer()
+class EntityProxy:
+    def __init__(self, target):
+        self._target = target
+        self.last_used = time.time()
+
+    def __getattr__(self, name):
+        self.last_used = time.time()
+        return getattr(self._target, name)
