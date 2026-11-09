@@ -1,40 +1,44 @@
 # game-performance-70
 
-`game-performance-70` is a lightweight Python toolkit designed to monitor and optimize system resource allocation for high-demand gaming sessions. It provides real-time metrics and automated process prioritization to reduce frame drops and input latency.
+`game-performance-70` is a high-precision telemetry and optimization suite designed to analyze hardware overhead during heavy gaming sessions. It provides real-time bottlenecks identification by monitoring CPU utilization, frame time consistency, and memory page faults.
 
 ## Features
-
-*   **Priority Orchestration:** Automatically elevates the CPU priority of active game processes while throttling background services to prevent stuttering.
-*   **Thermal Monitoring:** Tracks GPU and CPU junction temperatures in real-time to alert users before thermal throttling triggers frame rate degradation.
-*   **Resource Profiling:** Generates detailed CSV logs of RAM utilization and VRAM saturation to help identify memory-hungry background applications.
-*   **Instant Optimization:** A single-command toggle that clears standby cache and suspends non-essential Windows tasks during gameplay.
+* **Frame Time Analysis:** Calculates 1% and 0.1% low metrics to detect micro-stuttering that standard FPS counters miss.
+* **Hardware Overhead Tracking:** Monitors background process interrupts that conflict with gaming threads using Python’s `psutil` integration.
+* **Thermal Throttling Alerts:** Triggers system notifications if GPU/CPU junction temperatures exceed custom safety thresholds.
+* **Report Export:** Generates structured `.csv` logs for post-session analysis or visualization in data tools like Grafana.
 
 ## Installation
 
-Ensure you have Python 3.8+ installed. It is recommended to use a virtual environment for better dependency management.
+Ensure you have Python 3.8+ installed. Clone the repository and install the required dependencies:
 
 ```bash
-# Clone the repository
 git clone https://github.com/Developer/game-performance-70.git
 cd game-performance-70
-
-# Install required dependencies
 pip install -r requirements.txt
 ```
 
+*Note: Administrative/Sudo privileges are required to access low-level system process metrics.*
+
 ## Usage
 
-To monitor system performance and enable auto-optimization for your active process, run the main module with administrative privileges:
+To start a performance monitor session, run the core script with the PID of your gaming process:
 
 ```bash
-# Run with elevated permissions to allow process management
-sudo python main.py --optimize --monitor
+# Monitor a specific process
+python main.py --pid 4520 --interval 1.0 --output session_log.csv
 ```
 
-Once running, the application will detect the active fullscreen process and begin resource allocation. Press `Ctrl+C` to stop the service and restore standard system priority.
+You can also run it in global mode to capture aggregate system strain:
+
+```bash
+python main.py --global --duration 600
+```
+
+This will run the monitor for 10 minutes and automatically save the findings to the local `reports/` directory.
 
 ## License
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
