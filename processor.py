@@ -1,38 +1,41 @@
-import math
-from typing import List, Dict, Union
+import functools
+import time
+from typing import Callable, Any
 
-def normalize_telemetry(data: List[Dict[str, float]], peak_threshold: float = 1.0) -> List[float]:
-    """
-    Heuristic-based latency compression using a non-linear squashing function.
-    Transforms raw tick-time jitter into a [0, 1] performance score.
-    """
-    if not data:
-        return []
+class PerformanceOptimizer:
+    def __init__(self, cache_ttl: int = 5):
+        self.cache = {}
+        self.ttl = cache_ttl
 
-    def squash(val: float) -> float:
-        # Logistic-inspired dampening for extreme latency spikes
-        return 1.0 / (1.0 + math.exp(-(val - peak_threshold) * 2.0))
+    def fast_track(self, func: Callable) -> Callable:
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            key = (func.__name__, args, frozenset(kwargs.items()))
+            now = time.monotonic()
+            if key in self.cache:
+                result, timestamp = self.cache[key]
+                if now - timestamp < self.ttl:
+                    return result
+            result = func(*args, **kwargs)
+            self.cache[key] = (result, now)
+            return result
+        return wrapper
 
-    processed = []
-    for entry in data:
-        # extracting main frame delta, fallback to 0 if missing
-        delta = entry.get('delta', 0.0)
-        processed.append(round(squash(delta), 4))
-        
-    return processed
+def batch_process_entities(entities: list, processor_func: Callable) -> list:
+    """Process entities using pre-allocated memory slices for cache-friendly access."""
+    chunk_size = 100
+    results = [None] * len(entities)
+    for i in range(0, len(entities), chunk_size):
+        chunk = entities[i:i + chunk_size]
+        processed = map(processor_func, chunk)
+        results[i:i + len(chunk)] = list(processed)
+    return results
 
-def aggregate_spatial_bins(coords: List[tuple]) -> Dict[str, int]:
-    """
-    Grid-based occupancy mapping using binary string keys for speed.
-    """
-    bins = {}
-    for x, y in coords:
-        # quantized coordinate hashing
-        qx, qy = int(x // 10), int(y // 10)
-        key = f"{qx:04x}:{qy:04x}"
-        bins[key] = bins.get(key, 0) + 1
-    return bins
+# Usage example for performance-critical path
+optimizer = PerformanceOptimizer(cache_ttl=2)
 
-if __name__ == '__main__':
-    telemetry = [{'delta': 0.5}, {'delta': 2.5}, {'delta': 1.1}]
-    print(f"Normalized performance: {normalize_telemetry(telemetry)}")
+@optimizer.fast_track
+def calculate_game_physics(state_id: int) -> dict:
+    # Simulate expensive geometric projection
+    time.sleep(0.01)
+    return {"id": state_id, "vector": [1.0, 0.5, -0.2]}
