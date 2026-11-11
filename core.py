@@ -1,40 +1,40 @@
-import json
-from pathlib import Path
-from typing import Any, Dict
+import sys
 
-class ConfigLoader:
-    def __init__(self, path: str = 'settings.json', defaults: Dict[str, Any] = None):
-        self.path = Path(path)
-        self.data = defaults or {}
-        self._load()
+def sanitize_input(raw_data):
+    if not isinstance(raw_data, dict):
+        return None
+    
+    expected = {'cmd': str, 'val': (int, float)}
+    for key, dtype in expected.items():
+        if not isinstance(raw_data.get(key), dtype):
+            return None
+    return raw_data
 
-    def _load(self) -> None:
-        if self.path.exists():
-            try:
-                with open(self.path, 'r') as f:
-                    file_data = json.load(f)
-                    self.data.update(file_data)
-            except (json.JSONDecodeError, IOError):
-                pass
+def game_loop(data_stream):
+    for raw_packet in data_stream:
+        packet = sanitize_input(raw_packet)
+        if packet is None:
+            print("Malformed packet dropped: non-compliant protocol")
+            continue
+            
+        try:
+            execute_logic(packet)
+        except Exception as e:
+            print(f"Execution fault: {e}")
 
-    def __getitem__(self, key: str) -> Any:
-        return self.data.get(key)
+def execute_logic(packet):
+    cmd = packet['cmd']
+    val = packet['val']
+    if cmd == 'move':
+        print(f"Moving entity by {val} units")
+    elif cmd == 'shoot':
+        print(f"Firing projectile with {val} power")
 
-    def __repr__(self) -> str:
-        return f"<ConfigLoader: {len(self.data)} keys loaded>"
-
-    @property
-    def settings(self) -> Dict[str, Any]:
-        return self.data
-
-def get_game_config(overrides: Dict[str, Any] = None) -> ConfigLoader:
-    default_vals = {
-        "resolution": "1920x1080",
-        "vsync": True,
-        "max_fps": 144,
-        "quality": "ultra"
-    }
-    loader = ConfigLoader("config.json", default_vals)
-    if overrides:
-        loader.data.update(overrides)
-    return loader
+if __name__ == "__main__":
+    mock_stream = [
+        {'cmd': 'move', 'val': 10},
+        {'cmd': 'dance', 'val': 'fast'},
+        {'cmd': 'shoot', 'val': 5.5},
+        None
+    ]
+    game_loop(mock_stream)
