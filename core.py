@@ -1,40 +1,38 @@
-import sys
+import gc
+import time
+import logging
 
-def sanitize_input(raw_data):
-    if not isinstance(raw_data, dict):
-        return None
-    
-    expected = {'cmd': str, 'val': (int, float)}
-    for key, dtype in expected.items():
-        if not isinstance(raw_data.get(key), dtype):
-            return None
-    return raw_data
+class PerformanceOptimizer:
+    def __init__(self, threshold=0.8):
+        self.threshold = threshold
+        self.logger = logging.getLogger('game-performance-70')
 
-def game_loop(data_stream):
-    for raw_packet in data_stream:
-        packet = sanitize_input(raw_packet)
-        if packet is None:
-            print("Malformed packet dropped: non-compliant protocol")
-            continue
-            
-        try:
-            execute_logic(packet)
-        except Exception as e:
-            print(f"Execution fault: {e}")
+    def monitor_memory(self):
+        import psutil
+        mem = psutil.virtual_memory()
+        if mem.percent > (self.threshold * 100):
+            self.logger.warning(f"Memory saturation at {mem.percent}%. Triggering GC sweep.")
+            gc.collect()
+            return True
+        return False
 
-def execute_logic(packet):
-    cmd = packet['cmd']
-    val = packet['val']
-    if cmd == 'move':
-        print(f"Moving entity by {val} units")
-    elif cmd == 'shoot':
-        print(f"Firing projectile with {val} power")
+    def optimize_frame_budget(self, frame_time_limit=0.016):
+        def decorator(func):
+            def wrapper(*args, **kwargs):
+                start = time.perf_counter()
+                result = func(*args, **kwargs)
+                elapsed = time.perf_counter() - start
+                if elapsed > frame_time_limit:
+                    self.logger.debug(f"Frame spike detected: {elapsed:.4f}s")
+                return result
+            return wrapper
+        return decorator
 
-if __name__ == "__main__":
-    mock_stream = [
-        {'cmd': 'move', 'val': 10},
-        {'cmd': 'dance', 'val': 'fast'},
-        {'cmd': 'shoot', 'val': 5.5},
-        None
-    ]
-    game_loop(mock_stream)
+    @staticmethod
+    def purge_stale_cache(cache_dict, max_size=1000):
+        if len(cache_dict) > max_size:
+            keys_to_delete = list(cache_dict.keys())[:int(max_size * 0.2)]
+            for k in keys_to_delete:
+                del cache_dict[k]
+            return True
+        return False
