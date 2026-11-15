@@ -1,41 +1,41 @@
-import functools
-import time
-from typing import Callable, Any
+import logging
+from typing import Any, Optional
 
 class PerformanceOptimizer:
-    def __init__(self, cache_ttl: int = 5):
-        self.cache = {}
-        self.ttl = cache_ttl
+    def __init__(self, buffer_size: int = 1024):
+        self.buffer = [None] * buffer_size
+        self.cursor = 0
 
-    def fast_track(self, func: Callable) -> Callable:
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            key = (func.__name__, args, frozenset(kwargs.items()))
-            now = time.monotonic()
-            if key in self.cache:
-                result, timestamp = self.cache[key]
-                if now - timestamp < self.ttl:
-                    return result
-            result = func(*args, **kwargs)
-            self.cache[key] = (result, now)
-            return result
-        return wrapper
+    def process_frame_data(self, data: Any) -> Optional[float]:
+        try:
+            if not isinstance(data, (int, float)):
+                raise TypeError(f'Invalid data type: {type(data).__name__}')
+            
+            if data < 0:
+                raise ValueError('Negative frame latency detected')
+                
+            self.buffer[self.cursor] = data
+            self.cursor = (self.cursor + 1) % len(self.buffer)
+            
+            valid_data = [x for x in self.buffer if x is not None]
+            return sum(valid_data) / len(valid_data)
+            
+        except (TypeError, ValueError) as e:
+            logging.error(f'Frame processing anomaly: {e}')
+            return None
+        except IndexError:
+            logging.critical('Buffer overflow in frame processor')
+            self.cursor = 0
+            return None
+        except Exception as e:
+            logging.warning(f'Unexpected performance jitter: {e}')
+            return 0.0
 
-def batch_process_entities(entities: list, processor_func: Callable) -> list:
-    """Process entities using pre-allocated memory slices for cache-friendly access."""
-    chunk_size = 100
-    results = [None] * len(entities)
-    for i in range(0, len(entities), chunk_size):
-        chunk = entities[i:i + chunk_size]
-        processed = map(processor_func, chunk)
-        results[i:i + len(chunk)] = list(processed)
-    return results
+def run_pipeline(stream: list) -> list:
+    proc = PerformanceOptimizer()
+    return [proc.process_frame_data(item) for item in stream]
 
-# Usage example for performance-critical path
-optimizer = PerformanceOptimizer(cache_ttl=2)
-
-@optimizer.fast_track
-def calculate_game_physics(state_id: int) -> dict:
-    # Simulate expensive geometric projection
-    time.sleep(0.01)
-    return {"id": state_id, "vector": [1.0, 0.5, -0.2]}
+if __name__ == '__main__':
+    data_stream = [16.6, 17.2, -1, 'lag', 16.8]
+    results = run_pipeline(data_stream)
+    print(f'Processed metrics: {results}')
