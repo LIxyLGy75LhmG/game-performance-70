@@ -1,41 +1,27 @@
-import logging
-from typing import Any, Optional
+import time
+import random
 
-class PerformanceOptimizer:
-    def __init__(self, buffer_size: int = 1024):
-        self.buffer = [None] * buffer_size
-        self.cursor = 0
+def validate_input(data):
+    if not isinstance(data, dict) or 'frame_id' not in data:
+        raise ValueError('corrupt packet schema detected')
+    if not (0 <= data.get('latency', 999) < 500):
+        raise ValueError('latency threshold spike')
+    return True
 
-    def process_frame_data(self, data: Any) -> Optional[float]:
+def process_game_tick(stream):
+    for raw_packet in stream:
         try:
-            if not isinstance(data, (int, float)):
-                raise TypeError(f'Invalid data type: {type(data).__name__}')
-            
-            if data < 0:
-                raise ValueError('Negative frame latency detected')
-                
-            self.buffer[self.cursor] = data
-            self.cursor = (self.cursor + 1) % len(self.buffer)
-            
-            valid_data = [x for x in self.buffer if x is not None]
-            return sum(valid_data) / len(valid_data)
-            
-        except (TypeError, ValueError) as e:
-            logging.error(f'Frame processing anomaly: {e}')
-            return None
-        except IndexError:
-            logging.critical('Buffer overflow in frame processor')
-            self.cursor = 0
-            return None
-        except Exception as e:
-            logging.warning(f'Unexpected performance jitter: {e}')
-            return 0.0
-
-def run_pipeline(stream: list) -> list:
-    proc = PerformanceOptimizer()
-    return [proc.process_frame_data(item) for item in stream]
+            if validate_input(raw_packet):
+                print(f"processing tick: {raw_packet['frame_id']}")
+        except (ValueError, TypeError) as e:
+            print(f"discarding malformed input: {e}")
+            continue
 
 if __name__ == '__main__':
-    data_stream = [16.6, 17.2, -1, 'lag', 16.8]
-    results = run_pipeline(data_stream)
-    print(f'Processed metrics: {results}')
+    mock_stream = [
+        {'frame_id': 1, 'latency': 20},
+        {'frame_id': 2, 'latency': 800},
+        {'corrupted': 'data'},
+        {'frame_id': 3, 'latency': 45}
+    ]
+    process_game_tick(mock_stream)
