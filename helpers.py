@@ -1,37 +1,36 @@
 import time
 import functools
-from typing import Callable, Any
+import logging
 
-def performance_throttle(interval: float):
-    def decorator(func: Callable):
-        last_called = 0
+def time_execution(func):
+    """Decorator for tracking performance-critical game loops."""
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        start = time.perf_counter()
+        result = func(*args, **kwargs)
+        end = time.perf_counter()
+        if (duration := end - start) > 0.016:
+            logging.warning(f"Slow frame {func.__name__}: {duration:.4f}s")
+        return result
+    return wrapper
+
+def throttled(interval: float):
+    """Prevents function flooding in real-time game logic."""
+    def decorator(func):
+        last_called = [0.0]
         @functools.wraps(func)
-        def wrapper(*args: Any, **kwargs: Any):
-            nonlocal last_called
-            now = time.perf_counter()
-            if now - last_called >= interval:
-                last_called = now
+        def wrapper(*args, **kwargs):
+            if time.perf_counter() - last_called[0] > interval:
+                last_called[0] = time.perf_counter()
                 return func(*args, **kwargs)
-            return None
         return wrapper
     return decorator
 
-class ResourcePool:
-    def __init__(self, capacity: int = 1024):
-        self._stack = [object() for _ in range(capacity)]
-        self.capacity = capacity
+def clamp(value: float, min_val: float, max_val: float) -> float:
+    """Restrict numerical values for game engine bounds."""
+    return max(min_val, min(value, max_val))
 
-    def acquire(self):
-        return self._stack.pop() if self._stack else None
-
-    def release(self, item: Any):
-        if len(self._stack) < self.capacity:
-            self._stack.append(item)
-
-def format_frame_metrics(fps: float, latency: float) -> str:
-    metrics = {
-        "fps": round(fps, 2),
-        "latency_ms": round(latency * 1000, 3),
-        "timestamp": time.time_ns()
-    }
-    return " | ".join(f"{k}={v}" for k, v in metrics.items())
+def chunk_list(data: list, size: int):
+    """Partition asset loading batches."""
+    for i in range(0, len(data), size):
+        yield data[i:i + size]
