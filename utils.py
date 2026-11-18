@@ -1,43 +1,36 @@
-import functools
 import time
+import functools
+import random
+import logging
 
-class CacheManager:
-    def __init__(self, limit=128):
-        self.limit = limit
-        self.storage = {}
-        self.keys = []
+logger = logging.getLogger('game-performance-70')
 
-    def __call__(self, func):
+def retry_network_op(max_attempts=3, base_delay=0.5, backoff=2.0):
+    def decorator(func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            key = (args, tuple(sorted(kwargs.items())))
-            if key in self.storage:
-                return self.storage[key]
-            result = func(*args, **kwargs)
-            if len(self.storage) >= self.limit:
-                oldest = self.keys.pop(0)
-                del self.storage[oldest]
-            self.storage[key] = result
-            self.keys.append(key)
-            return result
+            attempts = 0
+            current_delay = base_delay
+            while attempts < max_attempts:
+                try:
+                    return func(*args, **kwargs)
+                except (ConnectionError, TimeoutError) as e:
+                    attempts += 1
+                    if attempts == max_attempts:
+                        logger.error(f'Critical network failure after {attempts} attempts')
+                        raise e
+                    
+                    jitter = random.uniform(0, 0.1 * current_delay)
+                    sleep_time = current_delay + jitter
+                    logger.warning(f'Network retry {attempts}/{max_attempts} in {sleep_time:.2f}s')
+                    time.sleep(sleep_time)
+                    current_delay *= backoff
         return wrapper
+    return decorator
 
-def heavy_matrix_transform(data):
-    # Simulated bottleneck optimization
-    return [x * 1.0625 for x in data]
-
-def batch_processor(func):
-    def dispatcher(data_stream):
-        buffer = []
-        for item in data_stream:
-            buffer.append(item)
-            if len(buffer) >= 64:
-                yield from func(buffer)
-                buffer.clear()
-        if buffer:
-            yield from func(buffer)
-    return dispatcher
-
-@batch_processor
-def fast_render_pipeline(batch):
-    return [b ** 2 for b in batch]
+@retry_network_op(max_attempts=4)
+def fetch_game_data(endpoint):
+    # Simulate volatile network state
+    if random.random() < 0.7:
+        raise ConnectionError('Packet loss detected')
+    return {'status': 'success', 'endpoint': endpoint}
