@@ -1,32 +1,42 @@
+import functools
 import time
 
-class InputError(Exception):
-    pass
+class PerformanceEngine:
+    def __init__(self, cache_size=128):
+        self.cache = {}
+        self.cache_size = cache_size
+        self.hits = 0
+        self.misses = 0
 
-VALID_KEYS = {'w', 'a', 's', 'd', 'space', 'shift'}
+    def memoize_frame(self, func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            key = (args, frozenset(kwargs.items()))
+            if key in self.cache:
+                self.hits += 1
+                return self.cache[key]
+            result = func(*args, **kwargs)
+            if len(self.cache) >= self.cache_size:
+                self.cache.pop(next(iter(self.cache)))
+            self.cache[key] = result
+            self.misses += 1
+            return result
+        return wrapper
 
-def process_frame(raw_input):
-    try:
-        if not isinstance(raw_input, str):
-            raise InputError(f'Invalid input type: {type(raw_input).__name__}')
-        
-        keys = set(raw_input.lower().split(','))
-        if not keys.issubset(VALID_KEYS):
-            invalid = keys - VALID_KEYS
-            raise InputError(f'Illegal inputs detected: {invalid}')
-        
-        return f'Processing commands: {keys}'
-    except InputError as e:
-        return f'Frame dropped: {e}'
+def calculate_physics_vector(force, mass, time_delta):
+    return (force / mass) * (time_delta ** 2)
 
-def main_loop():
-    stream = ['w,space', 'q,w', 123, 'a,d']
-    print('Starting performance cycle...')
-    for frame_data in stream:
-        start = time.perf_counter()
-        result = process_frame(frame_data)
-        duration = (time.perf_counter() - start) * 1000
-        print(f'[{duration:.4f}ms] {result}')
+engine = PerformanceEngine()
+optimized_physics = engine.memoize_frame(calculate_physics_vector)
+
+def process_frame_batch(entities, dt):
+    results = []
+    for entity in entities:
+        state = optimized_physics(entity['force'], entity['mass'], dt)
+        results.append(state)
+    return results
 
 if __name__ == '__main__':
-    main_loop()
+    mock_data = [{'force': 10.0, 'mass': 1.0} for _ in range(1000)]
+    output = process_frame_batch(mock_data, 0.016)
+    print(f'Computed {len(output)} vectors with {engine.hits} cache hits.')
