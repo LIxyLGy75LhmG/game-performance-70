@@ -1,30 +1,37 @@
 import logging
-import functools
-import time
+from logging.handlers import RotatingFileHandler
+import os
 
-# Custom high-performance performance logger
-def performance_tracker(func):
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        start = time.perf_counter()
-        result = func(*args, **kwargs)
-        elapsed = (time.perf_counter() - start) * 1000
-        if elapsed > 16.67:
-            logging.warning(f"Slow frame in {func.__name__}: {elapsed:.2f}ms")
-        return result
-    return wrapper
-
-def get_logger(name: str):
+def get_performance_logger(name='game-perf', log_file='game_metrics.log'):
     logger = logging.getLogger(name)
+    logger.setLevel(logging.DEBUG)
+
+    # Unusual approach: using a filter to inject performance context
+    class PerfFilter(logging.Filter):
+        def filter(self, record):
+            record.game_tick = getattr(record, 'game_tick', 'N/A')
+            return True
+
+    handler = RotatingFileHandler(
+        log_file, 
+        maxBytes=1024 * 1024 * 5, 
+        backupCount=3
+    )
+
+    formatter = logging.Formatter(
+        '[%(asctime)s] [TICK:%(game_tick)s] %(levelname)s: %(message)s'
+    )
+    
+    handler.setFormatter(formatter)
+    logger.addFilter(PerfFilter())
+    logger.addHandler(handler)
+    
+    # Prevent duplicate handlers on re-import
     if not logger.handlers:
-        handler = logging.StreamHandler()
-        formatter = logging.Formatter(
-            '%(asctime)s | %(levelname)-8s | %(name)s | %(message)s'
-        )
-        handler.setFormatter(formatter)
         logger.addHandler(handler)
-        logger.setLevel(logging.INFO)
+        
     return logger
 
-# Static instance for module-level usage
-engine_logger = get_logger("game-engine")
+if __name__ == '__main__':
+    log = get_performance_logger()
+    log.info('performance tracking initiated', extra={'game_tick': 0})
