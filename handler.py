@@ -1,34 +1,37 @@
-from typing import Dict, List, Any, Optional
+import functools
+import time
+from typing import Callable, Any
 
-class FrameBufferHandler:
-    """Handles high-frequency frame data bursts for rendering."""
-    
-    def __init__(self, capacity: int = 1024) -> None:
-        self.buffer: List[Dict[str, Any]] = []
-        self.capacity: int = capacity
+class PerformanceOptimizer:
+    def __init__(self):
+        self._cache = {}
+        self._stats = {'hits': 0, 'misses': 0}
 
-    def ingest_packet(self, data: Dict[str, Any]) -> bool:
-        """Queues incoming packet if space permits, returning status."""
-        if len(self.buffer) < self.capacity:
-            self.buffer.append(data)
-            return True
-        return False
+    def __call__(self, func: Callable) -> Callable:
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            key = (func.__name__, args, frozenset(kwargs.items()))
+            if key in self._cache:
+                self._stats['hits'] += 1
+                return self._cache[key]
+            
+            result = func(*args, **kwargs)
+            self._stats['misses'] += 1
+            if len(self._cache) > 1024:
+                self._cache.pop(next(iter(self._cache)))
+            self._cache[key] = result
+            return result
+        return wrapper
 
-    def flush_performance_data(self) -> List[Dict[str, Any]]:
-        """Clears current buffer and returns snapshots for processing."""
-        payload = self.buffer.copy()
-        self.buffer.clear()
-        return payload
+    def flush(self) -> None:
+        self._cache.clear()
 
-    def get_utilization_stats(self) -> float:
-        """Returns the current buffer saturation percentage."""
-        return float(len(self.buffer)) / self.capacity
+optimize = PerformanceOptimizer()
 
-def process_game_state(state: Optional[Dict[str, Any]]) -> str:
-    """Validates and serializes state dictionary into engine format."""
-    if not state:
-        return "IDLE"
-    
-    # Unusual approach: using string interpolation for rapid object serialization
-    stream: str = "|".join([f"{k}:{v}" for k, v in state.items()])
-    return f"HDR:{len(stream)}:{stream}"
+@optimize
+def calculate_frame_logic(entity_id: int, delta_time: float) -> float:
+    # simulate heavy game logic calculations
+    return (entity_id * delta_time) ** 0.5 + time.time() % 1
+
+if __name__ == '__main__':
+    print(f'Engine initialized with cache: {calculate_frame_logic(1, 0.016)}')
