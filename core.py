@@ -1,42 +1,40 @@
-import functools
 import time
+import functools
+from typing import Callable, Any
 
-class PerformanceEngine:
-    def __init__(self, cache_size=128):
-        self.cache = {}
-        self.cache_size = cache_size
-        self.hits = 0
-        self.misses = 0
-
-    def memoize_frame(self, func):
+def throttle_frame_rate(limit_hz: float):
+    interval = 1.0 / limit_hz
+    def decorator(func: Callable):
+        last_exec = 0.0
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            key = (args, frozenset(kwargs.items()))
-            if key in self.cache:
-                self.hits += 1
-                return self.cache[key]
+            nonlocal last_exec
+            elapsed = time.perf_counter() - last_exec
+            if elapsed >= interval:
+                last_exec = time.perf_counter()
+                return func(*args, **kwargs)
+            return None
+        return wrapper
+    return decorator
+
+def bitmask_check(val: int, flag: int) -> bool:
+    return (val & flag) == flag
+
+def interpolate(start: float, end: float, alpha: float) -> float:
+    return start + (end - start) * min(max(alpha, 0.0), 1.0)
+
+class PerformanceTracker:
+    def __init__(self):
+        self.snapshots = []
+
+    def measure(self, func: Callable):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            start = time.perf_counter()
             result = func(*args, **kwargs)
-            if len(self.cache) >= self.cache_size:
-                self.cache.pop(next(iter(self.cache)))
-            self.cache[key] = result
-            self.misses += 1
+            self.snapshots.append(time.perf_counter() - start)
             return result
         return wrapper
 
-def calculate_physics_vector(force, mass, time_delta):
-    return (force / mass) * (time_delta ** 2)
-
-engine = PerformanceEngine()
-optimized_physics = engine.memoize_frame(calculate_physics_vector)
-
-def process_frame_batch(entities, dt):
-    results = []
-    for entity in entities:
-        state = optimized_physics(entity['force'], entity['mass'], dt)
-        results.append(state)
-    return results
-
-if __name__ == '__main__':
-    mock_data = [{'force': 10.0, 'mass': 1.0} for _ in range(1000)]
-    output = process_frame_batch(mock_data, 0.016)
-    print(f'Computed {len(output)} vectors with {engine.hits} cache hits.')
+def vector_clamp(v: tuple[float, float], min_v: float, max_v: float) -> tuple[float, float]:
+    return tuple(max(min(val, max_v), min_v) for val in v)
