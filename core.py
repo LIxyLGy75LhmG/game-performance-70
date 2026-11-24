@@ -1,40 +1,60 @@
+import math
 import time
-import functools
-from typing import Callable, Any
+from typing import List, Optional, Tuple
 
-def throttle_frame_rate(limit_hz: float):
-    interval = 1.0 / limit_hz
-    def decorator(func: Callable):
-        last_exec = 0.0
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            nonlocal last_exec
-            elapsed = time.perf_counter() - last_exec
-            if elapsed >= interval:
-                last_exec = time.perf_counter()
-                return func(*args, **kwargs)
-            return None
-        return wrapper
-    return decorator
+class TelemetryAnomaly(Exception):
+    """Raised when frame timing metrics hit unrecoverable values."""
+    pass
 
-def bitmask_check(val: int, flag: int) -> bool:
-    return (val & flag) == flag
+class ResilientFrameProfiler:
+    """Tracks frame times and gracefully mitigates clock skews, alt-tab pauses, and zero divisions."""
+    def __init__(self, target_fps: float = 60.0, sample_limit: int = 120):
+        self.target_frame_time = 1.0 / max(1.0, target_fps)
+        self.sample_limit = sample_limit
+        self.history: List[float] = []
+        self.last_timestamp: Optional[float] = None
 
-def interpolate(start: float, end: float, alpha: float) -> float:
-    return start + (end - start) * min(max(alpha, 0.0), 1.0)
+    def record_frame(self, current_time: Optional[float] = None) -> float:
+        now = current_time if current_time is not None else time.perf_counter()
+        
+        if self.last_timestamp is None:
+            self.last_timestamp = now
+            return self.target_frame_time
 
-class PerformanceTracker:
-    def __init__(self):
-        self.snapshots = []
+        delta = now - self.last_timestamp
+        self.last_timestamp = now
 
-    def measure(self, func: Callable):
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            start = time.perf_counter()
-            result = func(*args, **kwargs)
-            self.snapshots.append(time.perf_counter() - start)
-            return result
-        return wrapper
+        try:
+            if math.isnan(delta) or math.isinf(delta):
+                raise TelemetryAnomaly("Corrupted float in frame timestamp")
+            if delta <= 0.0:
+                delta = self._get_fallback_delta()
+            elif delta > 1.0:
+                delta = 1.0
+        except TelemetryAnomaly:
+            delta = self._get_fallback_delta()
 
-def vector_clamp(v: tuple[float, float], min_v: float, max_v: float) -> tuple[float, float]:
-    return tuple(max(min(val, max_v), min_v) for val in v)
+        self.history.append(delta)
+        if len(self.history) > self.sample_limit:
+            self.history.pop(0)
+
+        return delta
+
+    def _get_fallback_delta(self) -> float:
+        if not self.history:
+            return self.target_frame_time
+        sorted_history = sorted(self.history)
+        return sorted_history[len(sorted_history) // 2]
+
+    def calculate_fps(self) -> Tuple[float, float]:
+        if not self.history:
+            return 60.0, 60.0
+        
+        avg_delta = sum(self.history) / len(self.history)
+        smooth_fps = 1.0 / max(avg_delta, 1e-6)
+        
+        p99_index = max(0, int(len(self.history) * 0.99) - 1)
+        slowest_delta = sorted(self.history)[p99_index]
+        one_percent_low = 1.0 / max(slowest_delta, 1e-6)
+
+        return round(smooth_fps, 2), round(one_percent_low, 2)
