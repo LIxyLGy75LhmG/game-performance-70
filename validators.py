@@ -1,27 +1,29 @@
-import logging
-from typing import Any, Dict, Optional
+import functools
 
-def validate_game_frame(data: Any) -> Optional[Dict]:
-    """Strict frame sanitizer for high-fps processing"""
-    if not isinstance(data, dict):
-        return None
-    
-    required_schema = {'fps': (int, float), 'delta': (int, float)}
-    
-    try:
-        for key, expected_type in required_schema.items():
-            val = data.get(key)
-            if not isinstance(val, expected_type) or val < 0:
-                raise ValueError(f"Invalid field {key}: {val}")
-        return data
-    except (ValueError, TypeError) as e:
-        logging.error(f"Dropped corrupt frame data: {e}")
-        return None
+def validate_game_input(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        payload = kwargs.get('data') or (args[0] if args else None)
+        if not isinstance(payload, dict) or 'input_code' not in payload:
+            return {'status': 'error', 'message': 'malformed telemetry packet'}
+        if not (0 <= payload.get('latency', 0) < 5000):
+            return {'status': 'error', 'message': 'latency outlier detected'}
+        return func(*args, **kwargs)
+    return wrapper
 
-def process_loop_input(raw_input: Any) -> None:
-    """Entry point for main loop sanitation"""
-    validated = validate_game_frame(raw_input)
-    if validated:
-        logging.info(f"Processing frame at {validated['fps']} FPS")
-    else:
-        logging.warning("Malformed frame packet bypassed sanity check")
+class TelemetryProcessor:
+    def __init__(self):
+        self.buffer = []
+
+    @validate_game_input
+    def ingest(self, data):
+        self.buffer.append(data)
+        return {'status': 'success', 'data_points': len(self.buffer)}
+
+def run_main_loop(processor, stream):
+    for raw_packet in stream:
+        response = processor.ingest(data=raw_packet)
+        if response.get('status') == 'error':
+            print(f"[CORE] Rejected packet: {response.get('message')}")
+        else:
+            print(f"[CORE] Accepted. Current buffer: {response.get('data_points')}")
