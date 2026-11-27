@@ -1,37 +1,46 @@
+import os
 import logging
 from logging.handlers import RotatingFileHandler
-import os
+from typing import Callable, Dict, Any
 
-def get_performance_logger(name='game-perf', log_file='game_metrics.log'):
-    logger = logging.getLogger(name)
+class FrameMetricsAdapter(logging.LoggerAdapter):
+    """Injects dynamic frame timing and rendering context into log records."""
+    def __init__(self, logger: logging.Logger, telemetry_fn: Callable[[], Dict[str, Any]] = None):
+        super().__init__(logger, {})
+        self.telemetry_fn = telemetry_fn or (lambda: {"fps": 60.0, "frame": 0})
+
+    def process(self, msg: str, kwargs: Dict[str, Any]):
+        metrics = self.telemetry_fn()
+        frame_id = metrics.get("frame", 0)
+        fps = metrics.get("fps", 0.0)
+        formatted_msg = f"[F:{frame_id:07d} | {fps:5.1f} FPS] {msg}"
+        return formatted_msg, kwargs
+
+def configure_rotating_logger(
+    log_path: str = "logs/perf_telemetry.log",
+    max_megabytes: float = 5.0,
+    backup_count: int = 3,
+    telemetry_provider: Callable[[], Dict[str, Any]] = None
+) -> FrameMetricsAdapter:
+    log_dir = os.path.dirname(log_path)
+    if log_dir:
+        os.makedirs(log_dir, exist_ok=True)
+
+    logger = logging.getLogger("game_performance")
     logger.setLevel(logging.DEBUG)
+    logger.handlers.clear()
 
-    # Unusual approach: using a filter to inject performance context
-    class PerfFilter(logging.Filter):
-        def filter(self, record):
-            record.game_tick = getattr(record, 'game_tick', 'N/A')
-            return True
-
-    handler = RotatingFileHandler(
-        log_file, 
-        maxBytes=1024 * 1024 * 5, 
-        backupCount=3
+    file_handler = RotatingFileHandler(
+        filename=log_path,
+        maxBytes=int(max_megabytes * 1024 * 1024),
+        backupCount=backup_count,
+        encoding="utf-8"
     )
-
     formatter = logging.Formatter(
-        '[%(asctime)s] [TICK:%(game_tick)s] %(levelname)s: %(message)s'
+        fmt="%(asctime)s.%(msecs)03d | %(levelname)-7s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S"
     )
-    
-    handler.setFormatter(formatter)
-    logger.addFilter(PerfFilter())
-    logger.addHandler(handler)
-    
-    # Prevent duplicate handlers on re-import
-    if not logger.handlers:
-        logger.addHandler(handler)
-        
-    return logger
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
 
-if __name__ == '__main__':
-    log = get_performance_logger()
-    log.info('performance tracking initiated', extra={'game_tick': 0})
+    return FrameMetricsAdapter(logger, telemetry_provider)
