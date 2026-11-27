@@ -1,36 +1,37 @@
 import time
 import functools
-import logging
+import random
+from typing import Callable, Any
 
-def time_execution(func):
-    """Decorator for tracking performance-critical game loops."""
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        start = time.perf_counter()
-        result = func(*args, **kwargs)
-        end = time.perf_counter()
-        if (duration := end - start) > 0.016:
-            logging.warning(f"Slow frame {func.__name__}: {duration:.4f}s")
-        return result
-    return wrapper
-
-def throttled(interval: float):
-    """Prevents function flooding in real-time game logic."""
-    def decorator(func):
+def throttler(interval: float):
+    def decorator(func: Callable):
         last_called = [0.0]
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            if time.perf_counter() - last_called[0] > interval:
-                last_called[0] = time.perf_counter()
+            now = time.time()
+            if now - last_called[0] >= interval:
+                last_called[0] = now
                 return func(*args, **kwargs)
         return wrapper
     return decorator
 
-def clamp(value: float, min_val: float, max_val: float) -> float:
-    """Restrict numerical values for game engine bounds."""
-    return max(min_val, min(value, max_val))
+def jitter_delay(base: float, variation: float = 0.2):
+    time.sleep(base + random.uniform(-variation, variation))
 
-def chunk_list(data: list, size: int):
-    """Partition asset loading batches."""
-    for i in range(0, len(data), size):
-        yield data[i:i + size]
+def memoize_frames(func: Callable):
+    cache = {}
+    @functools.wraps(func)
+    def wrapper(*args):
+        if args not in cache:
+            cache[args] = func(*args)
+        return cache[args]
+    return wrapper
+
+def unpack_entity(entity_data: dict, keys: list[str]) -> list[Any]:
+    return [entity_data.get(k) for k in keys]
+
+def byte_formatter(size_bytes: int) -> str:
+    if size_bytes == 0: return "0B"
+    units = ("B", "KB", "MB", "GB", "TB")
+    i = int(min(len(units)-1, (size_bytes.bit_length() - 1) // 10))
+    return f"{size_bytes / (1024**i):.2f}{units[i]}"
